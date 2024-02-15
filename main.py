@@ -1,16 +1,11 @@
-# This is a sample Python script.
+from db_scripts.db import *
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-
-
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
-
-
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+with open('cat.jpg', 'rb') as file:
+    array = file.read()
+add_challenge('Шаурмяу', 'заверни кота в шаурму', 0, '20/02/2024', array, False, coins_prize=10)
+with open('ichazy.png', 'rb') as file:
+    array = file.read()
+add_challenge('Chazy', "chazy's cool", 0, '20/02/2024', array, False, coins_prize=25)
+with open('gigachad.jpg', 'rb') as file:
+    array = file.read()
+add_challenge('Gigachad', 'стань сигмой', 0, '20/02/2024', array, False, coins_prize=25)

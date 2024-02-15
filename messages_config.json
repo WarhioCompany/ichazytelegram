@@ -2,5 +2,8 @@
   "new_user": "Хмм, не могу тебя найти.. Похоже ты тут новенький!",
   "enter_nickname": "Придумай себе новое супер-крутое имя",
   "registration_end": "Добро пожаловать в ряды ленивцев! Выполняй челленджи, получай кайф",
-  "welcome_username": "Приветсвую тебя, {username}"
+  "welcome_username": "Приветсвую тебя, {username}",
+  "user_info": "Сейчас у тебя на балансе {coins} монеток",
+  "challenge_page_challenge_element": "{id}. {name} - {desc}           {coins}\uD83D\uDFE1",
+  "challenge_page": "Выбери челлендж!"
 }

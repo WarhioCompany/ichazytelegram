@@ -26,5 +26,6 @@ class User:
     def get_from_db(self, telegram_id):
         data = get_user_by_telegram_id(telegram_id)
         if not data:
+            print('No such user')
             return
         self.from_json(data[0])

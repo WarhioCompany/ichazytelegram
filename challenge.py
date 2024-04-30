@@ -1,9 +1,9 @@
 from datetime import datetime
-
 from db_scripts.db import get_challenge_by_id
 
 
 class Challenge:
+    id = None
     name = None
     desc = None
     image = None
@@ -23,6 +23,7 @@ class Challenge:
         self.from_json(data[0])
 
     def from_json(self, data):
+        self.id = data['id']
         self.name = data['name']
         self.desc = data['desc']
         self.image = data['image']
@@ -30,3 +31,6 @@ class Challenge:
         self.coins_prize = data['coins_prize']
         self.prize_id = data['prize_id']
         self.date_to = datetime.strptime(data['date_to'], '%d/%m/%Y')
+
+    def __bool__(self):
+        return bool(self.name)

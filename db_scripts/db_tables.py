@@ -24,6 +24,7 @@ def create_challenges_table():
                                                             coins_prize int,
                                                             prize_id int,
                                                             date_to text,
+                                                            work_type text,
                                                             is_hard bool
                                                     ); """
     execute(sql)
@@ -33,9 +34,11 @@ def create_works_table():
     sql = f""" CREATE TABLE IF NOT EXISTS {USERWORKS_DB} (
                                                             id integer PRIMARY KEY,
                                                             user_id int,
-                                                            video blob,
+                                                            data blob,
                                                             challenge_id int,
                                                             date text,
+                                                            type text,
+                                                            like_count int,
                                                             is_approved bool
                                                     ); """
     execute(sql)

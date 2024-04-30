@@ -1,5 +1,6 @@
-from challenge_viewer import ChallengeViewer
+from challenge_viewer import ChallengePageViewer
 from db_scripts.db import get_user_by_telegram_id, add_user
+from user_work_viewer import UserWorksPageViewer
 
 
 class User:
@@ -10,12 +11,13 @@ class User:
     # Are you waiting for something? mewo
     waiting_for = None
 
-    def __init__(self, telegram_id=None, name=None):
-        self.challenge_viewer = ChallengeViewer()
-
+    def __init__(self, bot, telegram_id=None, name=None):
         if name:
             add_user(name, telegram_id)
         self.get_from_db(telegram_id)
+
+        self.challenge_viewer = ChallengePageViewer(bot, telegram_id)
+        self.user_works_viewer = UserWorksPageViewer(bot, telegram_id)
 
     def from_json(self, data):
         self.id = data['id']

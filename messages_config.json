@@ -5,5 +5,11 @@
   "welcome_username": "Приветсвую тебя, {username}",
   "user_info": "Сейчас у тебя на балансе {coins} монеток",
   "challenge_page_challenge_element": "{id}. {name} - {desc}           {coins}\uD83D\uDFE1",
-  "challenge_page": "Выбери челлендж!"
+  "challenge_picker": "Выбери челлендж!",
+  "challenge_card": "{name}        {coins}\uD83D\uDFE1\n{desc}\nДо: {date_to}",
+  "user_participation": "Круто! Пришли свою работу!",
+  "user_send_work": "Шикос! Теперь все увидят насколько ты крут",
+  "user_work_page_work_element": "{id}. {username}",
+  "userworks_picker": "Лайкни работу!",
+  "no_userworks_found": "Упс, никто пока не поделился своим творчеством"
 }

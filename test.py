@@ -18,3 +18,6 @@ SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 from db_data.models import Base, User, Challenge, UserWork, Prize, Brand
 Base.metadata.create_all(engine)
+
+User.__table__.drop(engine)
+UserWork.__table__.drop(engine)

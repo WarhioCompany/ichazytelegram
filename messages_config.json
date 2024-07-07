@@ -4,12 +4,24 @@
   "registration_end": "Добро пожаловать в ряды ленивцев! Выполняй челленджи, получай кайф",
   "welcome_username": "Приветсвую тебя, {username}",
   "user_info": "Сейчас у тебя на балансе {coins} монеток",
-  "challenge_page_challenge_element": "{id}. {name} - {desc}           {coins}\uD83D\uDFE1",
+  "challenge_page_challenge_element": "{id}. {name} - {desc}     {coins}\uD83D\uDFE1",
   "challenge_picker": "Выбери челлендж!",
-  "challenge_card": "{name}        {coins}\uD83D\uDFE1\n{desc}\nДо: {date_to}",
+  "challenge_card": "{name}          {coins}\uD83D\uDFE1\n{desc}\nДо: {date_to}",
   "user_participation": "Круто! Пришли свою работу!",
   "user_send_work": "Шикос! Теперь все увидят насколько ты крут",
-  "user_work_page_work_element": "{id}. {username}",
+  "incorrect_userwork_type": "Перечитай условия челленджа! Ты прислал другой вид медии",
+  "userwork_limit_exceeded": "Слишком много работ!",
+  "userwork_page_element": "{id}. {username}",
+  "private_userwork_page_element": "{id}. {challenge}",
   "userworks_picker": "Лайкни работу!",
-  "no_userworks_found": "Упс, никто пока не поделился своим творчеством"
+  "disapproved_userworks_picker": "Выбери какую работу удалить",
+  "approved_userworks_picker": "Ваши работы",
+  "no_userworks_found": "Упс, никто пока не поделился своим творчеством",
+  "no_private_userworks_found": "Ой, работ нет!",
+  "balance": "Ваш текущий баланс {coins}\uD83D\uDFE1",
+  "pick_challenge": "Сначала выбери челлендж",
+  "delete_confirmation": "Вы уверены, что хотите удалить вашу работу?",
+
+  "userwork_approved": "Ваша работа была одобрена",
+  "userwork_disapproved": "Ваша работа не была одобрена"
 }

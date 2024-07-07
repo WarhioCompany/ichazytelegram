@@ -1,11 +1,19 @@
+from datetime import datetime
+
 import telebot
 from telebot import types
 from commands import *
 
 from messages_handler import messages
-from db_scripts import db
-from user import User
-from user_work import UserWork
+#from user import User
+from userwrapper import UserData
+from db_data.models import UserWork, User
+
+from db_data import db_session, models
+from db_data.db_session import session_scope
+
+from notifications.notify import Notify
+import admin_bot.admin_bot as admin_bot
 
 users = {}
 
@@ -16,8 +24,14 @@ def get_token():
 
 
 def start_bot():
+    db_session.global_init('db/database.sqlite')
     bot = telebot.TeleBot(get_token())
 
+    notify = Notify(bot)
+
+    admin_bot.start_bot(notify)
+
+    # FUNCTIONS:
     def send_message(message, message_id, markup=None, **kwargs):
         bot.send_message(message.from_user.id, messages[message_id].format(**kwargs), reply_markup=markup)
 
@@ -31,111 +45,65 @@ def start_bot():
         viewer.show_challenges()
 
     def greeting(message):
-        user = get_user(message)
-        send_message(message, "welcome_username", username=user.name)
-        send_message(message, "user_info", coins=user.coins) 
+        with session_scope() as session:
+            user = session.query(User).filter(User.telegram_id == message.from_user.id).first()
+            send_message(message, "welcome_username", username=user.name)
+            send_message(message, "user_info", coins=user.coins)
         send_challenge_page(message)
 
-    @bot.callback_query_handler(func=lambda call: call.data == 'participate')
-    def participate(call):
-        challenge_id = get_user(call).challenge_viewer.challenge_card.current_challenge.id
-        get_user(call).waiting_for = 'work'
-        send_message(call, "user_participation")
-
-    @bot.callback_query_handler(func=lambda call: call.data.startswith('challenge_card'))
-    def picking_challenge(call):
-        # call: 'challenge_card {id}'
-        challenge_viewer = get_user(call).challenge_viewer
-        challenge_id = int(call.data.split()[1])
-
-        bot.answer_callback_query(call.id)
-        challenge_viewer.send_challenge(challenge_id)
-
-    @bot.callback_query_handler(func=lambda call: call.data == 'prev_page_challenges')
-    def prev_challenge_page(message):
-        get_user(message).challenge_viewer.prev_page()
-        bot.answer_callback_query(message.id)
-
-    @bot.callback_query_handler(func=lambda call: call.data == 'next_page_challenges')
-    def next_challenge_page(message):
-        get_user(message).challenge_viewer.next_page()
-        bot.answer_callback_query(message.id)
-
-    @bot.callback_query_handler(func=lambda call: call.data == 'prev_page_userworks')
-    def prev_challenge_page(message):
-        get_user(message).user_works_viewer.prev_page()
-        bot.answer_callback_query(message.id)
-
-    @bot.callback_query_handler(func=lambda call: call.data == 'next_page_userworks')
-    def next_challenge_page(message):
-        get_user(message).user_works_viewer.next_page()
-        bot.answer_callback_query(message.id)
-
-    @bot.callback_query_handler(func=lambda call: call.data == 'user_works')
-    def show_user_works(message):
-        bot.answer_callback_query(message.id)
-        user = get_user(message)
-        user.user_works_viewer.show_works(user.challenge_viewer.challenge_card.current_challenge.id)
-
-    @bot.callback_query_handler(func=lambda call: call.data.startswith('userwork_like'))
-    def like_userwork(message):
-        print('like', message.data.split()[-1])
-        work_id = int(message.data.split()[-1])
-        get_user(message).user_works_viewer.like_userwork(work_id)
-
-
+    # COMMANDS:
     @bot.message_handler(commands=['start', 'help'])
     def start_command(message):
         set_commands(message, bot)
 
-        user = User(telegram_id=message.from_user.id, bot=bot)
+        user = UserData(bot, message.from_user.id)
         users[message.from_user.id] = user
 
-        if not user.name:
+        if user.user():
+            greeting(message)
+            user.bot = bot
+        else:
             send_message(message, "new_user")
             send_message(message, "enter_nickname")
             user.waiting_for = 'name'
-        else:
-            greeting(message)
+
+    @bot.message_handler(func=lambda call: not get_user(call))
+    def non_existent_user(message):
+        start_command(message)
 
     @bot.message_handler(func=lambda message: get_user(message).waiting_for == 'name')
     def new_user(message):
-        users[message.from_user.id] = User(telegram_id=message.from_user.id, name=message.text, bot=bot)
+        user = UserData(bot, message.from_user.id, message.text)
+        users[message.from_user.id] = user
+        #users[message.from_user.id] = User(telegram_id=message.from_user.id, name=message.text, bot=bot)
         greeting(message)
 
     @bot.message_handler(content_types=['video']) 
     def upload_work_video(message):
-        if get_user(message).waiting_for != 'work':
-            print('зачем мне это')
+        user = get_user(message)
+        if user.waiting_for != 'work':
+            send_message(message, "pick_challenge")
             return
 
         file_info = bot.get_file(message.video.file_id)
         downloaded_file = bot.download_file(file_info.file_path)
 
-        upload_work(message, downloaded_file, 'video')
+        user.challenge_viewer.submit_userwork(downloaded_file, 'video')
+        # I'm kinda paranoid that it can cause some problems in the future, so just keep in mind it's here
+        user.waiting_for = ''
 
     @bot.message_handler(content_types=['photo'])
     def upload_work_photo(message):
-        if get_user(message).waiting_for != 'work':
-            print('зачем мне это')
+        user = get_user(message)
+        if user.waiting_for != 'work':
+            send_message(message, "pick_challenge")
             return
 
         image_size = 2  # 0 -> 2
-        file_info = bot.get_file(message.photo[image_size].file_id)
+        file_info = bot.get_file(message.photo[min(len(message.photo) - 1, image_size)].file_id)
         downloaded_file = bot.download_file(file_info.file_path)
 
-        upload_work(message, downloaded_file, 'image')
-
-    def upload_work(message, downloaded_file, type):
-        user = get_user(message)
-        work = UserWork(
-            user_id=user.id,
-            challenge_id=user.challenge_viewer.challenge_card.current_challenge.id,
-            data=downloaded_file,
-            type=type
-        )
-        send_message(message, "user_send_work")
-        work.add_to_db()
+        user.challenge_viewer.submit_userwork(downloaded_file, 'image')
         # I'm kinda paranoid that it can cause some problems in the future, so just keep in mind it's here
         user.waiting_for = ''
 
@@ -143,9 +111,101 @@ def start_bot():
     def view_challenges(message):
         send_challenge_page(message)
 
+    @bot.message_handler(commands=['my_works'])
+    def view_challenges(message):
+        get_user(message).private_userworks_viewer.send_mode_picker()
+
+    @bot.message_handler(commands=['balance'])
+    def balance(message):
+        send_message(message, "balance", coins=get_user(message).user().coins)
+
     @bot.message_handler(content_types=['text'])
     def get_text_messages(message):
         pass
+
+    # CALLBACKS:
+    @bot.callback_query_handler(func=lambda call: call.data == 'participate')
+    def participate(call):
+        if get_user(call).challenge_viewer.is_limit_exceeded():
+            send_message(call, 'userwork_limit_exceeded')
+        else:
+            get_user(call).waiting_for = 'work'
+            send_message(call, "user_participation")
+        bot.answer_callback_query(call.id)
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('challenge_card'))
+    def picking_challenge(call):
+        # call: 'challenge_card {id}'
+        user = get_user(call)
+        challenge_id = int(call.data.split()[1])
+
+        bot.answer_callback_query(call.id)
+        user.challenge_viewer.send_challenge(challenge_id)
+        if user.userworks_viewer.does_exist():
+            user.userworks_viewer.show_works(user.challenge_viewer.challenge_card.current_challenge.id)
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('prev_page'))
+    def prev_page(message):
+        identifier = message.data.split()[-1]
+
+        if identifier == 'challenges':
+            get_user(message).challenge_viewer.prev_page()
+        elif identifier == 'userworks':
+            get_user(message).userworks_viewer.prev_page()
+        elif identifier == 'private_userworks':
+            get_user(message).private_userworks_viewer.prev_page()
+        bot.answer_callback_query(message.id)
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('next_page'))
+    def next_page(message):
+        identifier = message.data.split()[-1]
+
+        if identifier == 'challenges':
+            get_user(message).challenge_viewer.next_page()
+        elif identifier == 'userworks':
+            get_user(message).userworks_viewer.next_page()
+        elif identifier == 'private_userworks':
+            get_user(message).private_userworks_viewer.next_page()
+        bot.answer_callback_query(message.id)
+
+    @bot.callback_query_handler(func=lambda call: call.data == 'user_works')
+    def show_user_works(message):
+        user = get_user(message)
+        user.userworks_viewer.show_works(user.challenge_viewer.challenge_card.current_challenge.id)
+        bot.answer_callback_query(message.id)
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('userwork_like'))
+    def like_userwork(message):
+        data = message.data.split()
+        work_id = int(data[-1])
+        identifier = data[1]
+        if identifier == 'userworks':
+            get_user(message).userworks_viewer.like_userwork(work_id)
+        elif identifier == 'private_userworks':
+            get_user(message).private_userworks_viewer.like_userwork(work_id)
+        bot.answer_callback_query(message.id)
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('delete_private_userwork '))
+    def delete_private_userwork(message):
+        work_id = int(message.data.split()[-1])
+
+        get_user(message).private_userworks_viewer.send_delete_confirmation(work_id)
+        bot.answer_callback_query(message.id)
+
+    @bot.callback_query_handler(func=lambda call: call.data == 'delete_private_userwork_confirm')
+    def delete_private_userwork_confirm(message):
+        get_user(message).private_userworks_viewer.delete_userwork()
+        bot.answer_callback_query(message.id)
+
+    @bot.callback_query_handler(func=lambda call: call.data == 'delete_private_userwork_decline')
+    def delete_private_userwork_decline(message):
+        get_user(message).private_userworks_viewer.delete_confirmation_message()
+        bot.answer_callback_query(message.id)
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('my_works '))
+    def my_works_mode(message):
+        get_user(message).private_userworks_viewer.show_works('disapproved' not in message.data)
+        bot.answer_callback_query(message.id)
 
     bot.infinity_polling()
 

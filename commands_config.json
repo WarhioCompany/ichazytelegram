@@ -1,4 +1,6 @@
 {
+  "start": "Start page",
   "view_challenges": "View challenges",
-  "help": "Bot help"
+  "my_works": "View your works",
+  "balance": "View your balance"
 }

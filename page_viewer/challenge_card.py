@@ -45,7 +45,7 @@ class ChallengeCard:
     def get_text(self):
         return messages['challenge_card'].format(
             name=self.current_challenge.name,
-            desc=self.current_challenge.desc,
+            desc=self.current_challenge.description,
             price=self.current_challenge.price,
             coins=self.current_challenge.coins_prize,
             date_to=datetime.strftime(self.current_challenge.date_to, '%d/%m/%y')

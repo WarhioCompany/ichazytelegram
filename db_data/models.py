@@ -14,6 +14,20 @@ user_userworks_likes = sqlalchemy.Table(
     sqlalchemy.Column("userwork_id", sqlalchemy.ForeignKey('userworks.id'), primary_key=True)
 )
 
+user_to_promocodes = sqlalchemy.Table(
+    "user_to_promocodes",
+    Base.metadata,
+    sqlalchemy.Column("user_id", sqlalchemy.ForeignKey('users.telegram_id'), primary_key=True),
+    sqlalchemy.Column("promocode_id", sqlalchemy.ForeignKey('promocodes.id'), primary_key=True)
+)
+
+challenge_to_promocode = sqlalchemy.Table(
+    "challenge_to_promocode",
+    Base.metadata,
+    sqlalchemy.Column("challenge_id", sqlalchemy.ForeignKey('challenges.id'), primary_key=True),
+    sqlalchemy.Column("promocode_id", sqlalchemy.ForeignKey('promocodes.id'), primary_key=True)
+)
+
 
 class User(Base):
     __tablename__ = 'users'
@@ -24,6 +38,8 @@ class User(Base):
 
     userworks = orm.relationship('UserWork', back_populates='user')
     liked_userworks = orm.relationship('UserWork', secondary=user_userworks_likes, back_populates='users_liked')
+
+    used_promocodes = orm.relationship('Promocode', secondary=user_to_promocodes, back_populates='users_used')
 
     def __eq__(self, other):
         return self.telegram_id == other.telegram_id
@@ -36,16 +52,24 @@ class Challenge(Base):
     name = sqlalchemy.Column(sqlalchemy.String)
     description = sqlalchemy.Column(sqlalchemy.String)
 
-    image = sqlalchemy.Column(sqlalchemy.BLOB)
+    image = sqlalchemy.Column(sqlalchemy.BLOB, nullable=True)
+    video = sqlalchemy.Column(sqlalchemy.BLOB, nullable=True)
 
     price = sqlalchemy.Column(sqlalchemy.Integer)
     date_to = sqlalchemy.Column(sqlalchemy.DATE)
     work_type = sqlalchemy.Column(sqlalchemy.String)
     userwork_limit = sqlalchemy.Column(sqlalchemy.Integer)
+    winner_limit = sqlalchemy.Column(sqlalchemy.Integer)
+
+    coins_prize = sqlalchemy.Column(sqlalchemy.Integer, nullable=True)
 
     is_hard = sqlalchemy.Column(sqlalchemy.Boolean)
-    coins_prize = sqlalchemy.Column(sqlalchemy.Integer, nullable=True)
-    prize_id = sqlalchemy.Column(sqlalchemy.Integer, nullable=True)
+    promocodes = orm.relationship('Promocode', secondary=challenge_to_promocode, back_populates='challenges')
+
+    prize_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('prizes.id'), nullable=True)
+    prize = orm.relationship('Prize')
+
+    post_link = sqlalchemy.Column(sqlalchemy.String, nullable=True)
 
     userworks = orm.relationship('UserWork', back_populates='challenge')
 
@@ -79,6 +103,7 @@ class Prize(Base):
 
     id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
     name = sqlalchemy.Column(sqlalchemy.String)
+    description = sqlalchemy.Column(sqlalchemy.String)
 
 
 class Brand(Base):
@@ -86,3 +111,21 @@ class Brand(Base):
 
     id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
     name = sqlalchemy.Column(sqlalchemy.String)
+
+
+class Promocode(Base):
+    __tablename__ = 'promocodes'
+
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
+
+    brand_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('brands.id'))
+    brand = orm.relationship('Brand')
+
+    promo = sqlalchemy.Column(sqlalchemy.String)
+
+    telegram_contact = sqlalchemy.Column(sqlalchemy.String)
+
+    users_used = orm.relationship('User', secondary=user_to_promocodes, back_populates='used_promocodes')
+    challenges = orm.relationship('Challenge', secondary=challenge_to_promocode, back_populates='promocodes')
+
+    is_expired = sqlalchemy.Column(sqlalchemy.Boolean, default=False)

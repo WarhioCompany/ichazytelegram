@@ -1,47 +1,69 @@
+from telebot import types
+
+
 class PageViewer:
-    def __init__(self, bot, user_id):
+    def __init__(self, bot, user_id, page_type, parse_mode=None):
         self.current_page = 0
-        self.images_ids = []
-        self.picker_id = None
+        self.media_id = None
+        # self.picker_id = None
 
         self.bot = bot
         self.user_id = user_id
+        self.page_type = page_type
+
+        self.parse_mode = parse_mode
 
     def reset(self):
         self.current_page = 0
-        self.delete_all()
+        self.delete()
 
-    def send_page(self, media_group):
+    def send_page(self, media, button_rows):
         self.reset()
-        messages_data = self.bot.send_media_group(self.user_id, media=media_group)
-        self.images_ids = [message.message_id for message in messages_data]
+        if type(media) == types.InputMediaPhoto:
+            self.media_id = self.bot.send_photo(self.user_id, media.media, self.escape(media.caption),
+                                                reply_markup=self.get_markup(button_rows),
+                                                parse_mode=self.parse_mode).message_id
+        else:
+            self.media_id = self.bot.send_video(self.user_id, media.media, self.escape(media.caption),
+                                                reply_markup=self.get_markup(button_rows),
+                                                parse_mode=self.parse_mode).message_id
 
-    def send_picker(self, text, buttons=None):
-        self.picker_id = self.bot.send_message(self.user_id, text, reply_markup=buttons).id
+    def escape(self, caption):
+        if self.parse_mode:
+            return caption.translate(str.maketrans({"!":  r"\!",
+                                                    "^":  r"\^",
+                                                    "#":  r"\#",
+                                                    ".":  r"\.",
+                                                    "-":  r"\-"}))
+        else:
+            return caption
 
-    def update_page(self, media_group):
-        for i in range(len(self.images_ids)):
-            try:
-                self.bot.edit_message_media(chat_id=self.user_id, message_id=self.images_ids[i], media=media_group[i])
-            except:
-                print('Page is identical')
+    def send_message(self, message):
+        self.reset()
+        self.media_id = self.bot.send_message(self.user_id, message).message_id
 
-    def update_picker(self, text, buttons):
+    def update_page(self, media, button_rows):
         try:
-            self.bot.edit_message_text(chat_id=self.user_id, message_id=self.picker_id,
-                                       reply_markup=buttons, text=text)
-        except:
-            print('Picker is identical')
+            self.bot.edit_message_media(chat_id=self.user_id, message_id=self.media_id, media=media,
+                                        reply_markup=self.get_markup(button_rows))
+            if self.parse_mode:
+                self.bot.edit_message_caption(chat_id=self.user_id, message_id=self.media_id,
+                                              caption=self.escape(media.caption), parse_mode=self.parse_mode,
+                                              reply_markup=self.get_markup(button_rows))
+        except Exception as e:
+            print(e)
 
-    def delete_all(self):
-        self.delete_picker()
-        self.delete_page()
+    def delete(self):
+        if self.media_id:
+            self.bot.delete_message(self.user_id, self.media_id)
 
-    def delete_page(self):
-        for message in self.images_ids:
-            self.bot.delete_message(self.user_id, message)
-        self.images_ids.clear()
+    def get_markup(self, button_rows):
+        markup = types.InlineKeyboardMarkup()
+        for row in button_rows:
+            markup.add(*row)
+        markup.add(*self.get_page_buttons())
+        return markup
 
-    def delete_picker(self):
-        if self.picker_id:
-            self.bot.delete_message(self.user_id, self.picker_id)
+    def get_page_buttons(self):
+        return [types.InlineKeyboardButton('←', callback_data=f'prev_page {self.page_type}'),
+                types.InlineKeyboardButton('→', callback_data=f'next_page {self.page_type}')]

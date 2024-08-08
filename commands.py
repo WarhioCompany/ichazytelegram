@@ -5,7 +5,7 @@ config_file_path = 'commands_config.json'
 
 
 def set_commands(message, bot):
-    data = json.load(open(config_file_path, 'r'))
+    data = json.load(open(config_file_path, 'r', encoding='utf-8'))
     commands = []
     for com in data:
         commands.append(types.BotCommand(command=com, description=data[com]))

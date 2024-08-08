@@ -8,93 +8,170 @@ from telebot import types
 from db_data.db_session import session_scope
 from messages_handler import messages
 
-from db_data.models import Challenge, UserWork
+from db_data.models import Challenge, UserWork, Prize, Promocode, User
 from db_data import db_session
 from page_viewer.page_viewer import PageViewer
 
 
 class ChallengePageViewer(PageViewer):
     def __init__(self, bot, user_id):
-        super().__init__(bot, user_id)
+        super().__init__(bot, user_id, 'challenges', parse_mode='MarkdownV2')
 
-        self.challenges_on_page = 3
-        self.current_challenges = []
-
-        self.challenge_card = ChallengeCard(bot, user_id)
+        self.current_challenge = None
 
     def show_challenges(self):
-        self.current_challenges = self.get_challenges()
-        self.challenge_card.delete()
-        self.send_page(self.get_media_group())
-        self.send_picker(messages["challenge_picker"], self.get_buttons())
+        self.current_challenge = self.get_challenge()
+
+        self.send_page(self.get_media(), self.get_button_rows())
 
     def next_page(self):
         self.current_page += 1
-        self.current_challenges = self.get_challenges()
-        self.update_page(self.get_media_group())
+        self.current_challenge = self.get_challenge()
+        self.update_page(self.get_media(), self.get_button_rows())
 
     def prev_page(self):
-        if self.current_page != 0:
-            self.current_page -= 1
-            self.current_challenges = self.get_challenges()
-            self.update_page(self.get_media_group())
+        self.current_page -= 1
+        self.current_challenge = self.get_challenge()
+        self.update_page(self.get_media(), self.get_button_rows())
 
-    def send_challenge(self, challenge_id):
-        self.challenge_card.show_info(self.current_challenges[challenge_id])
+        if self.current_page == -1:
+            with session_scope() as db_sess:
+                self.current_page = db_sess.query(Challenge).count() - 1
 
-    def get_challenges(self):
-        res = []
+    def get_challenge(self):
         with session_scope() as db_sess:
             challenges_amount = db_sess.query(Challenge).count()
 
-            for i in range(self.challenges_on_page):
-                challenge_id = (self.current_page * self.challenges_on_page + i) % challenges_amount + 1
-                res.append(db_sess.query(Challenge).filter(Challenge.id == challenge_id).first())
-        return res
+            challenge_id = self.current_page % challenges_amount + 1
+            return db_sess.query(Challenge).filter(Challenge.id == challenge_id).first()
 
-    def get_media_group(self):
-        media = [types.InputMediaPhoto(challenge.image) for challenge in self.current_challenges]
-        media[0].caption = self.challenge_page_text()
+    def get_media(self):
+        if self.current_challenge.image:
+            media = types.InputMediaPhoto(self.current_challenge.image)
+        else:
+            media = types.InputMediaVideo(self.current_challenge.video)
+        media.caption = self.challenge_page_text()
         return media
 
     def challenge_page_text(self):
-        return '\n'.join(messages['challenge_page_challenge_element'].format(
-            id=i + 1,
-            name=self.current_challenges[i].name,
-            desc=self.current_challenges[i].description,
-            price=self.current_challenges[i].price,
-            coins=self.current_challenges[i].coins_prize,
-            date_to=datetime.strftime(self.current_challenges[i].date_to, '%d/%m/%y')
-        ) for i in range(len(self.current_challenges)))
+        with session_scope() as session:
+            prize = session.query(Challenge).filter(
+                Challenge.id == self.current_challenge.id
+            ).one().prize
+            prize_desc = None
+            if prize:
+                prize_desc = prize.description
 
-    def get_buttons(self):
-        markup = types.InlineKeyboardMarkup()
+        if self.current_challenge.is_hard:
+            message = messages["challenge_page_element_prize"]
+        else:
+            message = messages['challenge_page_element_coins']
 
-        markup.add(*[types.InlineKeyboardButton(f'{i + 1}', callback_data=f'challenge_card {i}')
-                     for i in range(len(self.current_challenges))])
-        markup.add(types.InlineKeyboardButton('⬅', callback_data='prev_page challenges'),
-                   types.InlineKeyboardButton('➡', callback_data='next_page challenges'))
-        return markup
+        return message.format(
+            name=self.current_challenge.name,
+            desc=self.current_challenge.description,
+            price=self.current_challenge.price,
+            date_to=datetime.strftime(self.current_challenge.date_to, '%d/%m/%y'),
+            work_type=self.current_challenge.work_type,
+            userwork_limit=self.current_challenge.userwork_limit,
+            winner_limit=self.current_challenge.winner_limit,
+            coins_prize=self.current_challenge.coins_prize,
+            prize_desc=prize_desc,
+            promocodes=self.promocode_text(),
+            link=self.current_challenge.post_link,
+            winner_count=self.get_winner_count(),
+            userworks_approved=self.get_approved_userworks_count()
+        )
+
+    def promocode_text(self):
+        with session_scope() as session:
+            challenge = session.query(Challenge).filter(Challenge.id == self.current_challenge.id).one()
+            user = session.query(User).filter(User.telegram_id == self.user_id).one()
+            promocodes = [promocode for promocode in challenge.promocodes if not promocode.is_expired]
+
+            text_promo = []
+
+            for promocode in promocodes:
+                if promocode in user.used_promocodes:
+                    text_promo.append(f"~{promocode.promo}~")
+                else:
+                    text_promo.append(f"{promocode.promo}")
+
+            return "\n".join(text_promo)
+
+    def get_button_rows(self):
+        return [[types.InlineKeyboardButton('Посмотреть работы', callback_data='user_works'),
+                 types.InlineKeyboardButton('Участвовать', callback_data=f'participate')]]
 
     def submit_userwork(self, userwork, userwork_type):
-        if self.challenge_card.current_challenge.work_type != userwork_type:
+        if self.current_challenge.work_type != userwork_type:
             self.bot.send_message(self.user_id, messages["incorrect_userwork_type"])
         else:
+            with session_scope() as session:
+                user = session.query(User).filter(User.telegram_id == self.user_id).one()
+                user.coins -= self.current_challenge.price
+                session.commit()
             self.upload_work(userwork, userwork_type)
 
-    def is_limit_exceeded(self):
-        challenge = self.challenge_card.current_challenge
+    def can_submit(self):
+        userworks_count = self.get_approved_userworks_count()
+        winner_count = self.get_winner_count()
+
+        unused_promocodes = self.get_unused_promocodes()
+        if userworks_count >= self.current_challenge.userwork_limit:
+            message = messages["userwork_limit_exceeded"]
+        elif winner_count >= self.current_challenge.winner_limit:
+            message = messages["winner_limit_exceeded"]
+        elif unused_promocodes:
+            promocodes_text = '\n'.join(promocode.promo for promocode in unused_promocodes)
+            with session_scope() as session:
+                prize = session.query(Challenge).filter(Challenge.id == self.current_challenge.id).one().prize
+            message = messages['insufficient_challenge_condition'].format(
+                promocodes=promocodes_text,
+                link=self.current_challenge.post_link,
+                prize_desc=prize.description
+            )
+        elif not self.enough_coins():
+            message = messages["not_enough_coins"]
+        else:
+            return ''
+        return self.escape(message)
+
+    def get_unused_promocodes(self):
         with session_scope() as session:
-            userworks_count = session.query(UserWork).filter(and_(UserWork.user_id == self.user_id,
-                                                                  UserWork.challenge_id == challenge.id)).count()
-        if userworks_count >= challenge.userwork_limit:
-            return True
-        return False
+            promocodes = session.query(Challenge).filter(Challenge.id == self.current_challenge.id).one().promocodes
+            required_amount = sum(1 for promocode in promocodes if not promocode.is_expired)
+
+            user_promocodes = session.query(User).filter(User.telegram_id == self.user_id).one().used_promocodes
+            used_promocodes_amount = sum(1 for promocode in promocodes if promocode in user_promocodes)
+            if required_amount <= used_promocodes_amount:
+                return []
+            return [promocode for promocode in promocodes if not (promocode.is_expired or promocode in user_promocodes)]
+
+    def get_winner_count(self):
+        with session_scope() as session:
+            return session.query(UserWork).filter(and_(
+                UserWork.is_approved,
+                UserWork.challenge_id == self.current_challenge.id
+            )).count()
+
+    def get_approved_userworks_count(self):
+        with session_scope() as session:
+            return session.query(UserWork).filter(and_(
+                UserWork.is_approved,
+                UserWork.challenge_id == self.current_challenge.id,
+                UserWork.user_id == self.user_id
+            )).count()
+
+    def enough_coins(self):
+        with session_scope() as session:
+            user_coins = session.query(User).filter(User.telegram_id == self.user_id).one().coins
+            return user_coins >= self.current_challenge.price
 
     def upload_work(self, userwork, userwork_type):
         work = UserWork(
             user_id=self.user_id,
-            challenge_id=self.challenge_card.current_challenge.id,
+            challenge_id=self.current_challenge.id,
             data=userwork,
             type=userwork_type,
             date_uploaded=datetime.now(),

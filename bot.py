@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 
 import telebot
@@ -7,12 +8,12 @@ from commands import *
 from messages_handler import messages
 #from user import User
 from userwrapper import UserData
-from db_data.models import UserWork, User
+from db_data.models import UserWork, User, Promocode
 
 from db_data import db_session, models
 from db_data.db_session import session_scope
 
-from notifications.notify import Notify
+from notifications.notify import Notify, AdminNotify
 import admin_bot.admin_bot as admin_bot
 
 users = {}
@@ -28,8 +29,9 @@ def start_bot():
     bot = telebot.TeleBot(get_token())
 
     notify = Notify(bot)
+    admin_notify = AdminNotify()
 
-    admin_bot.start_bot(notify)
+    admin_bot.start_bot(notify, admin_notify)
 
     # FUNCTIONS:
     def send_message(message, message_id, markup=None, **kwargs):
@@ -51,6 +53,10 @@ def start_bot():
             send_message(message, "user_info", coins=user.coins)
         send_challenge_page(message)
 
+    @bot.message_handler(func=lambda call: not get_user(call))
+    def non_existent_user(message):
+        start_command(message)
+
     # COMMANDS:
     @bot.message_handler(commands=['start', 'help'])
     def start_command(message):
@@ -67,46 +73,6 @@ def start_bot():
             send_message(message, "enter_nickname")
             user.waiting_for = 'name'
 
-    @bot.message_handler(func=lambda call: not get_user(call))
-    def non_existent_user(message):
-        start_command(message)
-
-    @bot.message_handler(func=lambda message: get_user(message).waiting_for == 'name')
-    def new_user(message):
-        user = UserData(bot, message.from_user.id, message.text)
-        users[message.from_user.id] = user
-        #users[message.from_user.id] = User(telegram_id=message.from_user.id, name=message.text, bot=bot)
-        greeting(message)
-
-    @bot.message_handler(content_types=['video']) 
-    def upload_work_video(message):
-        user = get_user(message)
-        if user.waiting_for != 'work':
-            send_message(message, "pick_challenge")
-            return
-
-        file_info = bot.get_file(message.video.file_id)
-        downloaded_file = bot.download_file(file_info.file_path)
-
-        user.challenge_viewer.submit_userwork(downloaded_file, 'video')
-        # I'm kinda paranoid that it can cause some problems in the future, so just keep in mind it's here
-        user.waiting_for = ''
-
-    @bot.message_handler(content_types=['photo'])
-    def upload_work_photo(message):
-        user = get_user(message)
-        if user.waiting_for != 'work':
-            send_message(message, "pick_challenge")
-            return
-
-        image_size = 2  # 0 -> 2
-        file_info = bot.get_file(message.photo[min(len(message.photo) - 1, image_size)].file_id)
-        downloaded_file = bot.download_file(file_info.file_path)
-
-        user.challenge_viewer.submit_userwork(downloaded_file, 'image')
-        # I'm kinda paranoid that it can cause some problems in the future, so just keep in mind it's here
-        user.waiting_for = ''
-
     @bot.message_handler(commands=['view_challenges'])
     def view_challenges(message):
         send_challenge_page(message)
@@ -119,30 +85,44 @@ def start_bot():
     def balance(message):
         send_message(message, "balance", coins=get_user(message).user().coins)
 
-    @bot.message_handler(content_types=['text'])
-    def get_text_messages(message):
-        pass
+    @bot.message_handler(commands=['shop'])
+    def shop(message):
+        send_message(message, "shop")
+
+    @bot.message_handler(commands=['partnership'])
+    def collaboration(message):
+        send_message(message, "partnership")
+
+    @bot.message_handler(commands=['promocode'])
+    def collaboration(message):
+        get_user(message).waiting_for = 'promocode'
+        send_message(message, "enter_promocode")
+
+    @bot.message_handler(commands=['support'])
+    def collaboration(message):
+        send_message(message, "support")
 
     # CALLBACKS:
     @bot.callback_query_handler(func=lambda call: call.data == 'participate')
     def participate(call):
-        if get_user(call).challenge_viewer.is_limit_exceeded():
-            send_message(call, 'userwork_limit_exceeded')
+        error_message = get_user(call).challenge_viewer.can_submit()
+        if error_message:
+            bot.send_message(call.from_user.id, error_message, parse_mode='MarkdownV2', disable_web_page_preview=True)
         else:
             get_user(call).waiting_for = 'work'
             send_message(call, "user_participation")
         bot.answer_callback_query(call.id)
 
-    @bot.callback_query_handler(func=lambda call: call.data.startswith('challenge_card'))
-    def picking_challenge(call):
-        # call: 'challenge_card {id}'
-        user = get_user(call)
-        challenge_id = int(call.data.split()[1])
-
-        bot.answer_callback_query(call.id)
-        user.challenge_viewer.send_challenge(challenge_id)
-        if user.userworks_viewer.does_exist():
-            user.userworks_viewer.show_works(user.challenge_viewer.challenge_card.current_challenge.id)
+    # @bot.callback_query_handler(func=lambda call: call.data.startswith('challenge_card'))
+    # def picking_challenge(call):
+    #     # call: 'challenge_card {id}'
+    #     user = get_user(call)
+    #     challenge_id = int(call.data.split()[1])
+    #
+    #     bot.answer_callback_query(call.id)
+    #     user.challenge_viewer.send_challenge(challenge_id)
+    #     if user.userworks_viewer.does_exist():
+    #         user.userworks_viewer.show_works(user.challenge_viewer.challenge_card.current_challenge.id)
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith('prev_page'))
     def prev_page(message):
@@ -171,7 +151,7 @@ def start_bot():
     @bot.callback_query_handler(func=lambda call: call.data == 'user_works')
     def show_user_works(message):
         user = get_user(message)
-        user.userworks_viewer.show_works(user.challenge_viewer.challenge_card.current_challenge.id)
+        user.userworks_viewer.show_works(user.challenge_viewer.current_challenge.id)
         bot.answer_callback_query(message.id)
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith('userwork_like'))
@@ -207,7 +187,57 @@ def start_bot():
         get_user(message).private_userworks_viewer.show_works('disapproved' not in message.data)
         bot.answer_callback_query(message.id)
 
-    bot.infinity_polling()
+    # User manipulation:
+    @bot.message_handler(func=lambda message: get_user(message).waiting_for == 'name')
+    def new_user(message):
+        user = UserData(bot, message.from_user.id, message.text)
+        users[message.from_user.id] = user
+        # users[message.from_user.id] = User(telegram_id=message.from_user.id, name=message.text, bot=bot)
+        greeting(message)
+
+    @bot.message_handler(func=lambda message: get_user(message).waiting_for == 'promocode')
+    def enter_promocode(message):
+        promocode = message.text
+        with session_scope() as session:
+            result = session.query(Promocode).filter(Promocode.promo == promocode).all()
+            if result:
+                promocode_obj = result[0]
+                send_message(message, 'promocode_correct', contact=promocode_obj.telegram_contact)
+                admin_notify.user_used_promocode(message.from_user, promocode_obj)
+            else:
+                send_message(message, 'promocode_incorrect')
+
+    # USERWORK SUBMISSION
+    @bot.message_handler(content_types=['video'])
+    def upload_work_video(message):
+        user = get_user(message)
+        if user.waiting_for != 'work':
+            send_message(message, "pick_challenge")
+            return
+
+        file_info = bot.get_file(message.video.file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+
+        user.challenge_viewer.submit_userwork(downloaded_file, 'video')
+        # I'm kinda paranoid that it can cause some problems in the future, so just keep in mind it's here
+        user.waiting_for = ''
+
+    @bot.message_handler(content_types=['photo'])
+    def upload_work_photo(message):
+        user = get_user(message)
+        if user.waiting_for != 'work':
+            send_message(message, "pick_challenge")
+            return
+
+        image_size = 2  # 0 -> 2
+        file_info = bot.get_file(message.photo[min(len(message.photo) - 1, image_size)].file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+
+        user.challenge_viewer.submit_userwork(downloaded_file, 'image')
+        # I'm kinda paranoid that it can cause some problems in the future, so just keep in mind it's here
+        user.waiting_for = ''
+
+    bot.infinity_polling(logger_level=logging.INFO)
 
 
 start_bot()

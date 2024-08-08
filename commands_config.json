@@ -1,6 +1,10 @@
 {
-  "start": "Start page",
-  "view_challenges": "View challenges",
-  "my_works": "View your works",
-  "balance": "View your balance"
+  "start": "Меню",
+  "view_challenges": "Все челленджи",
+  "my_works": "Мои работы",
+  "balance": "Мой баланс",
+  "support": "У меня что-то сломалось",
+  "shop": "Хочу стикерпак",
+  "promocode": "Ввести промокод",
+  "partnership": "Сотрудничество"
 }

@@ -4,24 +4,41 @@
   "registration_end": "Добро пожаловать в ряды ленивцев! Выполняй челленджи, получай кайф",
   "welcome_username": "Приветсвую тебя, {username}",
   "user_info": "Сейчас у тебя на балансе {coins} монеток",
-  "challenge_page_challenge_element": "{id}. {name} - {desc}     {coins}\uD83D\uDFE1",
-  "challenge_picker": "Выбери челлендж!",
-  "challenge_card": "{name}          {coins}\uD83D\uDFE1\n{desc}\nДо: {date_to}",
+
+  "challenge_page_element_coins": "{name} {coins_prize}\uD83D\uDCB0\n{desc}\n\uD83C\uDFC6{winner_count}/{winner_limit}\nТвои гениальные работы: {userworks_approved}/{userwork_limit}",
+  "challenge_page_element_prize": "{name} \uD83C\uDF81\n{desc}\n\uD83C\uDFC6{winner_count}/{winner_limit}\n{promocodes}\nТвои гениальные работы: {userworks_approved}/{userwork_limit}\n[{prize_desc}]({link})\nСтоимость участия: {price}\uD83D\uDCB0",
+
+  "challenge_picker": "Выбери",
   "user_participation": "Круто! Пришли свою работу!",
   "user_send_work": "Шикос! Теперь все увидят насколько ты крут",
   "incorrect_userwork_type": "Перечитай условия челленджа! Ты прислал другой вид медии",
-  "userwork_limit_exceeded": "Слишком много работ!",
-  "userwork_page_element": "{id}. {username}",
-  "private_userwork_page_element": "{id}. {challenge}",
+
+  "userwork_limit_exceeded": "Слишком много гениальных работ!",
+  "winner_limit_exceeded": "Эх, все сладкие местечки уже заняты",
+
+  "userwork_page_element": "{username}\n{current_page}/{pages_amount}",
+  "private_userwork_page_element": "{challenge}",
   "userworks_picker": "Лайкни работу!",
   "disapproved_userworks_picker": "Выбери какую работу удалить",
   "approved_userworks_picker": "Ваши работы",
   "no_userworks_found": "Упс, никто пока не поделился своим творчеством",
   "no_private_userworks_found": "Ой, работ нет!",
-  "balance": "Ваш текущий баланс {coins}\uD83D\uDFE1",
   "pick_challenge": "Сначала выбери челлендж",
   "delete_confirmation": "Вы уверены, что хотите удалить вашу работу?",
 
   "userwork_approved": "Ваша работа была одобрена",
-  "userwork_disapproved": "Ваша работа не была одобрена"
+  "userwork_approved_hard": "Ваша работа была одобрена, с вами свяжется админ!",
+  "userwork_disapproved": "Ваша работа не была одобрена",
+
+  "balance": "Ваш текущий баланс {coins}\uD83D\uDCB0",
+  "partnership": "Сотрудничество: @mikeept",
+  "shop": "Хочешь промокод? Пиши: @mikeept",
+  "support": "Поддержка: @mikeept",
+
+  "enter_promocode": "Введите промокод",
+  "promocode_correct": "Крутяк! Напиши: @{contact}",
+  "promocode_incorrect": "У нас нет такого промокода!",
+
+  "insufficient_challenge_condition": "Так, перечитай условия\nПромокоды:\n{promocodes}\n[{prize_desc}]({link})",
+  "not_enough_coins": "Недостаточно монет! Цена челленджа: {price}\uD83D\uDCB0"
 }

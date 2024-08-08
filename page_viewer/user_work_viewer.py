@@ -8,41 +8,33 @@ from page_viewer.page_viewer import PageViewer
 
 
 class UserWorksViewer(PageViewer):
-    def __init__(self, bot, user_id, identifier, get_userworks_func, messages_handler, buttons_generator):
-        super().__init__(bot, user_id)
+    def __init__(self, bot, user_id, page_type, get_userwork_func, messages_handler, get_button_rows):
+        super().__init__(bot, user_id, page_type)
 
-        self.works_on_page = 3
-        self.current_works = []
-        self.userworks = []
+        self.current_work = None
 
-        self.identifier = identifier
-        self.get_userworks_func = get_userworks_func
+        self.get_userwork_func = get_userwork_func
         self.messages_handler = messages_handler
-        self.buttons_generator = buttons_generator
+        self.get_button_rows = get_button_rows
 
         self._session = None
+        self.pages_amount = -1
 
     def show_works(self, *args):
         self._session = create_session()
 
-        # TJLAKJSD
-
-        self.current_works = self.get_userworks_func()
-        if self.current_works:
-            self.send_page(self.get_media_group())
-            self.send_picker(self.messages_handler("userworks_picker"), self.get_buttons())
+        self.current_work = self.get_userwork_func()
+        if self.current_work:
+            self.send_page(self.get_media(), self.get_button_rows())
         else:
-            self.reset()
-            self.send_picker(self.messages_handler('nothing_found'))
+            self.send_message(self.messages_handler('nothing_found'))
 
-    def get_media_group(self):
-        media = []
-        for work in self.current_works:
-            if work.type == 'video':
-                media.append(types.InputMediaVideo(work.data))
-            elif work.type == 'image':
-                media.append(types.InputMediaPhoto(work.data))
-        media[0].caption = self.works_page_text()
+    def get_media(self):
+        if self.current_work.type == 'video':
+            media = types.InputMediaVideo(self.current_work.data)
+        else:   # image
+            media = types.InputMediaPhoto(self.current_work.data)
+        media.caption = self.works_page_text()
         return media
 
     def next_page(self):
@@ -55,63 +47,48 @@ class UserWorksViewer(PageViewer):
             self.update()
 
     def update(self):
-        self.current_works = self.get_userworks_func()
+        self.current_work = self.get_userwork_func()
 
-        if self.current_works:
-            self.update_page(self.get_media_group())
-            self.update_picker(self.messages_handler("userworks_picker"), self.get_buttons())
+        if self.current_work:
+            self.update_page(self.get_media(), self.get_button_rows())
         else:
             self.reset()
-            self.send_picker(self.messages_handler('nothing_found'))
+            self.send_message(self.messages_handler('nothing_found'))
 
     def works_page_text(self):
-        return '\n'.join(self.messages_handler('page_text').format(
-            id=i + 1,
-            username=self.current_works[i].user.name,
-            challenge=self.current_works[i].challenge.name
-        ) for i in range(len(self.current_works)))
+        return self.messages_handler('page_text').format(
+            username=self.current_work.user.name,
+            challenge=self.current_work.challenge.name,
+            current_page=self.current_page % self.pages_amount + 1,
+            pages_amount=self.pages_amount
+        )
+
+    def does_exist(self):
+        return bool(self.current_work)
+
+    def get_like_buttons(self):
+        buttons = []
+        user_dummy = User(telegram_id=f'{self.user_id}')
+        # ❤ 🤍
+        if user_dummy in self.current_work.users_liked:
+            s = f'{len(self.current_work.users_liked)}❤'
+        else:
+            s = f'{len(self.current_work.users_liked)}🤍'
+        buttons.append(types.InlineKeyboardButton(s, callback_data=f'userwork_like {self.page_type} {0}'))
+        return [buttons]
 
     def like_userwork(self, work_id):
         with session_scope() as db_sess:
             user = db_sess.query(User).filter(User.telegram_id == self.user_id).first()
-            userwork = db_sess.merge(self.current_works[work_id])
+            userwork = db_sess.merge(self.current_work)
             if user in userwork.users_liked:
                 userwork.users_liked.remove(user)
             else:
                 userwork.users_liked.append(user)
             db_sess.commit()
         self._session.expire_all()
-        self.current_works = self.get_userworks_func()
-        self.update_picker(self.messages_handler("userworks_picker"), self.get_buttons())
-
-    def get_buttons(self):
-        markup = types.InlineKeyboardMarkup()
-
-        # markup.add(*[types.InlineKeyboardButton(f'{i + 1}: {likes[i]}🤍', callback_data=f'userwork_like {i}')
-        #              for i in range(len(self.current_works))])
-        if self.buttons_generator:
-            buttons = self.buttons_generator()
-            for row in buttons:
-                markup.add(*row)
-
-        markup.add(types.InlineKeyboardButton('⬅', callback_data=f'prev_page {self.identifier}'),
-                   types.InlineKeyboardButton('➡', callback_data=f'next_page {self.identifier}'))
-        return markup
-
-    def does_exist(self):
-        return bool(self.picker_id)
-
-    def get_like_buttons(self):
-        buttons = []
-        user_dummy = User(telegram_id=f'{self.user_id}')
-        # ❤ 🤍
-        for i in range(len(self.current_works)):
-            if user_dummy in self.current_works[i].users_liked:
-                s = f'{i + 1}: {len(self.current_works[i].users_liked)}❤'
-            else:
-                s = f'{i + 1}: {len(self.current_works[i].users_liked)}🤍'
-            buttons.append(types.InlineKeyboardButton(s, callback_data=f'userwork_like {self.identifier} {i}'))
-        return [buttons]
+        self.current_work = self.get_userwork_func()
+        self.update()
 
 
 class PrivateUserWorksPageViewer(UserWorksViewer):
@@ -141,21 +118,18 @@ class PrivateUserWorksPageViewer(UserWorksViewer):
     def get_userworks(self):
         works = list(self._session.query(UserWork).filter(and_(UserWork.user_id == self.user_id,
                                                                self.is_approved == UserWork.is_approved)))
+
         if not works:
             return []
 
-        res = []
-        for i in range(self.works_on_page):
-            work_id = (self.current_page * self.works_on_page + i) % len(works)
-            res.append(works[work_id])
-        return res
+        self.pages_amount = len(works)
+        return works[self.current_page % self.pages_amount]
 
     def generate_buttons(self):
         if self.is_approved:
             return self.get_like_buttons()
         else:
-            return [[types.InlineKeyboardButton(f'{i + 1}: ❌ ', callback_data=f'delete_private_userwork {i}')
-                     for i in range(self.works_on_page)]]
+            return [[types.InlineKeyboardButton(f'❌ ', callback_data=f'delete_private_userwork {0}')]]
 
     def send_delete_confirmation(self, work_id):
         self.work_id_to_delete = work_id
@@ -168,7 +142,7 @@ class PrivateUserWorksPageViewer(UserWorksViewer):
                                                           reply_markup=markup).message_id
 
     def delete_userwork(self):
-        self._session.query(UserWork).filter(UserWork.id == self.current_works[self.work_id_to_delete].id).delete()
+        self._session.query(UserWork).filter(UserWork.id == self.current_work.id).delete()
         self._session.commit()
         self.update()
         self.delete_confirmation_message()
@@ -192,24 +166,21 @@ class PrivateUserWorksPageViewer(UserWorksViewer):
 
 class UserWorksPageViewer(UserWorksViewer):
     def __init__(self, bot, user_id):
-        super().__init__(bot, user_id, 'userworks', self.get_userworks, self.messages_handler, self.get_like_buttons)
+        super().__init__(bot, user_id, 'userworks', self.get_userwork, self.messages_handler, self.get_like_buttons)
         self.challenge_id = None
 
     def show_works(self, challenge_id):
         self.challenge_id = challenge_id
         super().show_works()
 
-    def get_userworks(self):
+    def get_userwork(self):
         works = list(self._session.query(UserWork).filter(
             and_(UserWork.is_approved, UserWork.challenge_id == self.challenge_id)))
         if not works:
             return []
 
-        res = []
-        for i in range(self.works_on_page):
-            work_id = (self.current_page * self.works_on_page + i) % len(works)
-            res.append(works[work_id])
-        return res
+        self.pages_amount = len(works)
+        return works[self.current_page % self.pages_amount]
 
     def messages_handler(self, message):
         if message == 'nothing_found':
@@ -222,22 +193,17 @@ class UserWorksPageViewer(UserWorksViewer):
 
 class AdminUserWorksPageViewer(UserWorksViewer):
     def __init__(self, bot, user_id):
-        super().__init__(bot, user_id, 'userworks', self.get_userworks, self.messages_handler, self.generate_buttons)
-        self.works_on_page = 1
+        super().__init__(bot, user_id, 'userworks', self.get_userwork, self.messages_handler, self.generate_buttons)
 
     def show_works(self):
         super().show_works()
 
-    def get_userworks(self):
+    def get_userwork(self):
         works = list(self._session.query(UserWork).filter(not_(UserWork.is_approved)))
         if not works:
             return []
 
-        res = []
-        for i in range(self.works_on_page):
-            work_id = (self.current_page * self.works_on_page + i) % len(works)
-            res.append(works[work_id])
-        return res
+        return works[self.current_page % len(works)]
 
     def messages_handler(self, message):
         if message == 'nothing_found':
@@ -245,23 +211,23 @@ class AdminUserWorksPageViewer(UserWorksViewer):
         elif message == 'userworks_picker':
             return 'Опции'
         elif message == 'page_text':
-            return self.current_works[0].challenge.name
+            return self.current_work.challenge.name
 
     def generate_buttons(self):
         return [[
-            types.InlineKeyboardButton('approve', callback_data=f'approve_userwork {self.current_works[0].id}'),
-            types.InlineKeyboardButton('disapprove', callback_data=f'disapprove_userwork {self.current_works[0].id}')
+            types.InlineKeyboardButton('approve', callback_data=f'approve_userwork {self.current_work.id}'),
+            types.InlineKeyboardButton('disapprove', callback_data=f'disapprove_userwork {self.current_work.id}')
         ]]
 
     def remove_userwork(self):
-        userwork = self.current_works[0]
+        userwork = self.current_work
         self._session.query(UserWork).filter(UserWork.id == userwork.id).delete()
 
         self._session.commit()
 
     def approve_userwork(self):
         with session_scope() as session:
-            userwork = session.query(UserWork).filter(UserWork.id == self.current_works[0].id).one()
+            userwork = session.query(UserWork).filter(UserWork.id == self.current_work.id).one()
             user = userwork.user
             challenge = userwork.challenge
 

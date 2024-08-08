@@ -7,7 +7,6 @@ import threading
 
 from page_viewer.user_work_viewer import AdminUserWorksPageViewer
 
-
 def get_token():
     with open('admin_bot/token.secret', 'r') as file:
         return file.readline()
@@ -22,8 +21,9 @@ def get_pass():
 admins = {}
 
 
-def start_bot(notify):
+def start_bot(notify, admin_notify):
     bot = telebot.TeleBot(get_token())
+    admin_notify.set_bot(bot)
 
     @bot.message_handler(commands=['start', 'help'])
     def start_command(message):
@@ -40,9 +40,12 @@ def start_bot(notify):
         if md5_password.hexdigest() == get_pass():
             admins[message.from_user.id]['is_authorized'] = True
             bot.send_message(message.from_user.id, 'Авторизован')
+
             admins[message.from_user.id]['userwork_viewer'] = AdminUserWorksPageViewer(bot, message.from_user.id)
             print(message.from_user.username, 'is authorized')
+
             view_userworks(message)
+            admin_notify.add_admin(message.from_user.id)
         else:
             bot.send_message(message.from_user.id, 'Неверный пароль')
 
@@ -64,7 +67,7 @@ def start_bot(notify):
     def approve_userwork(message):
         # add coins to user, send notification, change status to approved
         admins[message.from_user.id]['userwork_viewer'].approve_userwork()
-        notify.userwork_approved(admins[message.from_user.id]['userwork_viewer'].current_works[0])
+        notify.userwork_approved(admins[message.from_user.id]['userwork_viewer'].current_work)
 
         admins[message.from_user.id]['userwork_viewer'].next_page()
         bot.answer_callback_query(message.id)
@@ -72,11 +75,24 @@ def start_bot(notify):
     @bot.callback_query_handler(func=lambda call: call.data.startswith('disapprove_userwork'))
     def disapprove_userwork(message):
         # delete userwork from db or set the status to checked, send notification
-        notify.userwork_disapproved(admins[message.from_user.id]['userwork_viewer'].current_works[0])
+        notify.userwork_disapproved(admins[message.from_user.id]['userwork_viewer'].current_work)
         admins[message.from_user.id]['userwork_viewer'].remove_userwork()
 
         admins[message.from_user.id]['userwork_viewer'].next_page()
         bot.answer_callback_query(message.id)
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('promo_confirmation'))
+    def promocode_confirmation(call):
+        data = call.data.split()
+        if data[1] == 'approve':
+            user_id = data[2]
+            promocode_id = int(data[3])
+            with session_scope() as session:
+                user = session.query(User).filter(User.telegram_id == user_id).one()
+                promocode = session.query(Promocode).filter(Promocode.id == promocode_id).one()
+                user.used_promocodes.append(promocode)
+                session.commit()
+        bot.delete_message(call.from_user.id, call.message.id)
 
     thread = threading.Thread(target=bot.infinity_polling)
     thread.start()

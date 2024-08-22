@@ -21,6 +21,7 @@ class UserWorksViewer(PageViewer):
         self.pages_amount = -1
 
     def show_works(self, *args):
+        self.reset()
         self._session = create_session()
 
         self.current_work = self.get_userwork_func()
@@ -178,7 +179,7 @@ class UserWorksPageViewer(UserWorksViewer):
             and_(UserWork.is_approved, UserWork.challenge_id == self.challenge_id)))
         if not works:
             return []
-
+        print(self.current_page)
         self.pages_amount = len(works)
         return works[self.current_page % self.pages_amount]
 

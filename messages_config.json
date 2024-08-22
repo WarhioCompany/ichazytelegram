@@ -38,6 +38,7 @@
   "enter_promocode": "Введите промокод",
   "promocode_correct": "Крутяк! Напиши: @{contact}",
   "promocode_incorrect": "У нас нет такого промокода!",
+  "promocode_already_used": "Ты уже использовал этот промик!",
 
   "insufficient_challenge_condition": "Так, перечитай условия\nПромокоды:\n{promocodes}\n[{prize_desc}]({link})",
   "not_enough_coins": "Недостаточно монет! Цена челленджа: {price}\uD83D\uDCB0"

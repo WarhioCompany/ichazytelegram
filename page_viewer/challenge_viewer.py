@@ -20,6 +20,7 @@ class ChallengePageViewer(PageViewer):
         self.current_challenge = None
 
     def show_challenges(self):
+        self.reset()
         self.current_challenge = self.get_challenge()
 
         self.send_page(self.get_media(), self.get_button_rows())
@@ -50,7 +51,9 @@ class ChallengePageViewer(PageViewer):
             media = types.InputMediaPhoto(self.current_challenge.image)
         else:
             media = types.InputMediaVideo(self.current_challenge.video)
-        media.caption = self.challenge_page_text()
+        text = self.challenge_page_text()
+        media.caption = text
+        print(text.split('\n')[0])
         return media
 
     def challenge_page_text(self):
@@ -80,7 +83,7 @@ class ChallengePageViewer(PageViewer):
             promocodes=self.promocode_text(),
             link=self.current_challenge.post_link,
             winner_count=self.get_winner_count(),
-            userworks_approved=self.get_approved_userworks_count()
+            userworks_approved=self.get_userworks_count(approved=True)
         )
 
     def promocode_text(self):
@@ -114,7 +117,7 @@ class ChallengePageViewer(PageViewer):
             self.upload_work(userwork, userwork_type)
 
     def can_submit(self):
-        userworks_count = self.get_approved_userworks_count()
+        userworks_count = self.get_userworks_count()
         winner_count = self.get_winner_count()
 
         unused_promocodes = self.get_unused_promocodes()
@@ -132,7 +135,9 @@ class ChallengePageViewer(PageViewer):
                 prize_desc=prize.description
             )
         elif not self.enough_coins():
-            message = messages["not_enough_coins"]
+            with session_scope() as session:
+                price = session.query(Challenge).filter(Challenge.id == self.current_challenge.id).one().price
+            message = messages["not_enough_coins"].format(price=price)
         else:
             return ''
         return self.escape(message)
@@ -155,13 +160,19 @@ class ChallengePageViewer(PageViewer):
                 UserWork.challenge_id == self.current_challenge.id
             )).count()
 
-    def get_approved_userworks_count(self):
+    def get_userworks_count(self, approved=False):
         with session_scope() as session:
-            return session.query(UserWork).filter(and_(
-                UserWork.is_approved,
-                UserWork.challenge_id == self.current_challenge.id,
-                UserWork.user_id == self.user_id
-            )).count()
+            if approved:
+                return session.query(UserWork).filter(and_(
+                    UserWork.is_approved,
+                    UserWork.challenge_id == self.current_challenge.id,
+                    UserWork.user_id == self.user_id
+                )).count()
+            else:
+                return session.query(UserWork).filter(and_(
+                    UserWork.challenge_id == self.current_challenge.id,
+                    UserWork.user_id == self.user_id
+                )).count()
 
     def enough_coins(self):
         with session_scope() as session:

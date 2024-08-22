@@ -78,7 +78,7 @@ def start_bot():
         send_challenge_page(message)
 
     @bot.message_handler(commands=['my_works'])
-    def view_challenges(message):
+    def my_works(message):
         get_user(message).private_userworks_viewer.send_mode_picker()
 
     @bot.message_handler(commands=['balance'])
@@ -197,13 +197,15 @@ def start_bot():
 
     @bot.message_handler(func=lambda message: get_user(message).waiting_for == 'promocode')
     def enter_promocode(message):
-        promocode = message.text
+        promocode_text = message.text
         with session_scope() as session:
-            result = session.query(Promocode).filter(Promocode.promo == promocode).all()
-            if result:
-                promocode_obj = result[0]
-                send_message(message, 'promocode_correct', contact=promocode_obj.telegram_contact)
-                admin_notify.user_used_promocode(message.from_user, promocode_obj)
+            promocode = session.query(Promocode).filter(Promocode.promo == promocode_text).one()
+            used_promocodes = session.query(User).filter(User.telegram_id == message.from_user.id).one().used_promocodes
+            if promocode in used_promocodes:
+                send_message(message, 'promocode_already_used')
+            elif promocode:
+                send_message(message, 'promocode_correct', contact=promocode.telegram_contact)
+                admin_notify.user_used_promocode(message.from_user, promocode)
             else:
                 send_message(message, 'promocode_incorrect')
 
@@ -224,6 +226,7 @@ def start_bot():
 
     @bot.message_handler(content_types=['photo'])
     def upload_work_photo(message):
+        # ФУНКЦИЯ ВЫПОЛНЯЕТСЯ АСИНХРОННО, ПОЭТОМУ МОЖНО УСПЕТЬ ОТПРАВИТЬ ДВЕ РАБОТЫ, ПРИ МЕДЛЕННОМ ИНТЕРНЕТЕ СЕРВА
         user = get_user(message)
         if user.waiting_for != 'work':
             send_message(message, "pick_challenge")

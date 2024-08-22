@@ -18,7 +18,6 @@ class PageViewer:
         self.delete()
 
     def send_page(self, media, button_rows):
-        self.reset()
         if type(media) == types.InputMediaPhoto:
             self.media_id = self.bot.send_photo(self.user_id, media.media, self.escape(media.caption),
                                                 reply_markup=self.get_markup(button_rows),
@@ -39,7 +38,6 @@ class PageViewer:
             return caption
 
     def send_message(self, message):
-        self.reset()
         self.media_id = self.bot.send_message(self.user_id, message).message_id
 
     def update_page(self, media, button_rows):
@@ -56,6 +54,7 @@ class PageViewer:
     def delete(self):
         if self.media_id:
             self.bot.delete_message(self.user_id, self.media_id)
+            self.media_id = None
 
     def get_markup(self, button_rows):
         markup = types.InlineKeyboardMarkup()

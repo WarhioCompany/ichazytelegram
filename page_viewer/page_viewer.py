@@ -1,4 +1,4 @@
-from telebot import types
+from telebot import types, apihelper
 
 
 class PageViewer:
@@ -53,8 +53,15 @@ class PageViewer:
 
     def delete(self):
         if self.media_id:
-            self.bot.delete_message(self.user_id, self.media_id)
+            self.delete_message_if_exists()
             self.media_id = None
+
+    def delete_message_if_exists(self):
+        try:
+            self.bot.delete_message(self.user_id, self.media_id)
+        except apihelper.ApiTelegramException as e:
+            #self.bot.edit_message_caption(chat_id=self.user_id, message_id=self.media_id, caption='Удалено')
+            pass
 
     def get_markup(self, button_rows):
         markup = types.InlineKeyboardMarkup()

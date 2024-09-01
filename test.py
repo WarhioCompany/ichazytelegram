@@ -16,13 +16,15 @@ engine = sa.create_engine(conn_str, echo=False)
 __factory = scoped_session(sessionmaker(bind=engine))
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
-from db_data.models import Base, User, Challenge, UserWork, Prize, Brand, Promocode, user_to_promocodes
+from db_data.models import Base, User, Challenge, UserWork, Prize, Brand, Promocode, user_to_promocodes, UnauthorizedPromocode
 Base.metadata.create_all(engine)
 
 UserWork.__table__.drop(engine)
 user_to_promocodes.drop(engine)
 user_userworks_likes.drop(engine)
+UnauthorizedPromocode.__table__.drop(engine)
 User.__table__.drop(engine)
+
 exit()
 Challenge.__table__.drop(engine)
 Promocode.__table__.drop(engine)

@@ -2,3 +2,4 @@
 venv
 __pycache__
 *.secret
+db/clean_db.sqlite

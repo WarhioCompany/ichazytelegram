@@ -1,16 +1,14 @@
 import logging
-from datetime import datetime
 
 import telebot
-from telebot import types
-from commands import *
+from commands_manager.commands import set_commands
 
 from messages_handler import messages
 #from user import User
 from userwrapper import UserData
-from db_data.models import UserWork, User, Promocode
+from db_data.models import User, Promocode, UnauthorizedPromocode
 
-from db_data import db_session, models
+from db_data import db_session
 from db_data.db_session import session_scope
 
 from notifications.notify import Notify, AdminNotify
@@ -20,8 +18,7 @@ users = {}
 
 
 def get_token():
-    with open('token.secret', 'r') as file:
-        return file.readline()
+    return '7487435849:AAGZ_3NXNyFvwNXhBFI38idHOXPIjS5M1Vw' #input('Bot token: ')
 
 
 def start_bot():
@@ -60,7 +57,7 @@ def start_bot():
     # COMMANDS:
     @bot.message_handler(commands=['start', 'help'])
     def start_command(message):
-        set_commands(message, bot)
+        set_commands(message, bot, 'commands_manager/commands_config.json')
 
         user = UserData(bot, message.from_user.id)
         users[message.from_user.id] = user
@@ -205,7 +202,14 @@ def start_bot():
                 send_message(message, 'promocode_already_used')
             elif promocode:
                 send_message(message, 'promocode_correct', contact=promocode.telegram_contact)
-                admin_notify.user_used_promocode(message.from_user, promocode)
+                unauthorized_promocode = UnauthorizedPromocode(
+                    user_id=message.from_user.id,
+                    promocode_id=promocode.id,
+                    username=message.from_user.username
+                )
+                session.add(unauthorized_promocode)
+                session.commit()
+                #admin_notify.user_used_promocode(message.from_user, promocode)
             else:
                 send_message(message, 'promocode_incorrect')
 

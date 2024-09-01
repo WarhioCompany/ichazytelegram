@@ -18,7 +18,7 @@ users = {}
 
 
 def get_token():
-    return '7487435849:AAGZ_3NXNyFvwNXhBFI38idHOXPIjS5M1Vw' #input('Bot token: ')
+    return input('Bot token: ')
 
 
 def start_bot():

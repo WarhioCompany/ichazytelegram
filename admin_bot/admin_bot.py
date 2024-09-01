@@ -12,7 +12,7 @@ from commands_manager.commands import set_commands
 
 
 def get_token():
-    return '6840051405:AAEAOzugWc4E3THGViB14wZlWL5JLEnm4z0' #input('Admin token: ')
+    return input('Admin token: ')
 
 
 def get_pass():

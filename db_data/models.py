@@ -10,24 +10,23 @@ class Base(DeclarativeBase):
 user_userworks_likes = sqlalchemy.Table(
     "user_userworks_likes",
     Base.metadata,
-    sqlalchemy.Column("user_id", sqlalchemy.ForeignKey('users.telegram_id'), primary_key=True),
-    sqlalchemy.Column("userwork_id", sqlalchemy.ForeignKey('userworks.id'), primary_key=True)
+    sqlalchemy.Column("user_id", sqlalchemy.ForeignKey('users.telegram_id')),
+    sqlalchemy.Column("userwork_id", sqlalchemy.ForeignKey('userworks.id'))
 )
 
 user_to_promocodes = sqlalchemy.Table(
     "user_to_promocodes",
     Base.metadata,
-    sqlalchemy.Column("user_id", sqlalchemy.ForeignKey('users.telegram_id'), primary_key=True),
-    sqlalchemy.Column("promocode_id", sqlalchemy.ForeignKey('promocodes.id'), primary_key=True),
+    sqlalchemy.Column("user_id", sqlalchemy.ForeignKey('users.telegram_id')),
+    sqlalchemy.Column("promocode_id", sqlalchemy.ForeignKey('promocodes.id')),
 )
 
 challenge_to_promocode = sqlalchemy.Table(
     "challenge_to_promocode",
     Base.metadata,
-    sqlalchemy.Column("challenge_id", sqlalchemy.ForeignKey('challenges.id'), primary_key=True),
-    sqlalchemy.Column("promocode_id", sqlalchemy.ForeignKey('promocodes.id'), primary_key=True)
+    sqlalchemy.Column("challenge_id", sqlalchemy.ForeignKey('challenges.id')),
+    sqlalchemy.Column("promocode_id", sqlalchemy.ForeignKey('promocodes.id'))
 )
-
 
 
 class User(Base):
@@ -143,3 +142,6 @@ class UnauthorizedPromocode(Base):
     user_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('users.telegram_id'))
     user = orm.relationship('User')
     username = sqlalchemy.Column(sqlalchemy.String)
+
+    def __eq__(self, other):
+        return self.promocode_id == other.promocode_id

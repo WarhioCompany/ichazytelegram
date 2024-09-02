@@ -34,6 +34,9 @@ class AdminNotify:
                    types.InlineKeyboardButton('Decline', callback_data=f'promo_confirmation decline'))
 
         for admin_id in self.admin_ids:
-            self.bot.send_message(admin_id, f'@{user.username} использовал промокод: {promocode.promo}',
-                                  reply_markup=markup)
+            self.bot.send_message(
+                admin_id,
+                f'@{user.username} использовал промокод: {promocode.promo}',
+                # reply_markup=markup
+            )
 

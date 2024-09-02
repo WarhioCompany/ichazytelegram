@@ -207,9 +207,12 @@ def start_bot():
                     promocode_id=promocode.id,
                     username=message.from_user.username
                 )
+                if unauthorized_promocode in session.query(UnauthorizedPromocode).all():
+                    print('NONONO')
+                    return
                 session.add(unauthorized_promocode)
                 session.commit()
-                #admin_notify.user_used_promocode(message.from_user, promocode)
+                admin_notify.user_used_promocode(message.from_user, promocode)
             else:
                 send_message(message, 'promocode_incorrect')
 

@@ -53,7 +53,6 @@ class ChallengePageViewer(PageViewer):
             media = types.InputMediaVideo(self.current_challenge.video)
         text = self.challenge_page_text()
         media.caption = text
-        print(text.split('\n')[0])
         return media
 
     def challenge_page_text(self):

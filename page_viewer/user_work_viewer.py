@@ -212,7 +212,7 @@ class AdminUserWorksPageViewer(UserWorksViewer):
         elif message == 'userworks_picker':
             return 'Опции'
         elif message == 'page_text':
-            return self.current_work.challenge.name
+            return f'Челлендж {self.current_work.challenge.name}\nЮзер {self.current_work.user.name}'
 
     def generate_buttons(self):
         return [[

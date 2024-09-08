@@ -127,6 +127,8 @@ def start_bot():
 
         if identifier == 'challenges':
             get_user(message).challenge_viewer.prev_page()
+            # ОБНУЛЯЕМ КНОПКУ "Участвовать"
+            get_user(message).waiting_for = ''
         elif identifier == 'userworks':
             get_user(message).userworks_viewer.prev_page()
         elif identifier == 'private_userworks':
@@ -139,6 +141,8 @@ def start_bot():
 
         if identifier == 'challenges':
             get_user(message).challenge_viewer.next_page()
+            # ОБНУЛЯЕМ КНОПКУ "Участвовать"
+            get_user(message).waiting_for = ''
         elif identifier == 'userworks':
             get_user(message).userworks_viewer.next_page()
         elif identifier == 'private_userworks':

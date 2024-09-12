@@ -4,7 +4,7 @@ import telebot
 from commands_manager.commands import set_commands
 
 from messages_handler import messages
-#from user import User
+# from user import User
 from userwrapper import UserData
 from db_data.models import User, Promocode, UnauthorizedPromocode
 
@@ -31,8 +31,13 @@ def start_bot():
     admin_bot.start_bot(notify, admin_notify)
 
     # FUNCTIONS:
-    def send_message(message, message_id, markup=None, **kwargs):
-        bot.send_message(message.from_user.id, messages[message_id].format(**kwargs), reply_markup=markup)
+    def send_message(message, message_id, markup=None, parse_mode=None, **kwargs):
+        bot.send_message(
+            message.from_user.id,
+            messages[message_id].format(**kwargs),
+            reply_markup=markup,
+            parse_mode=parse_mode
+        )
 
     def get_user(message):
         if message.from_user.id in users:
@@ -46,7 +51,6 @@ def start_bot():
     def greeting(message):
         with session_scope() as session:
             user = session.query(User).filter(User.telegram_id == message.from_user.id).first()
-            send_message(message, "welcome_username", username=user.name)
             send_message(message, "user_info", coins=user.coins)
         send_challenge_page(message)
 
@@ -63,6 +67,7 @@ def start_bot():
         users[message.from_user.id] = user
 
         if user.user():
+            send_message(message, "welcome_username", username=user.user().name)
             greeting(message)
             user.bot = bot
         else:
@@ -194,6 +199,11 @@ def start_bot():
         user = UserData(bot, message.from_user.id, message.text)
         users[message.from_user.id] = user
         # users[message.from_user.id] = User(telegram_id=message.from_user.id, name=message.text, bot=bot)
+        bot.send_message(
+            message.from_user.id,
+            messages['registration_end'].replace('.', r'\.').replace('-', r'\-').replace('!', r'\!'),
+            parse_mode='MarkdownV2'
+        )
         greeting(message)
 
     @bot.message_handler(func=lambda message: get_user(message).waiting_for == 'promocode')

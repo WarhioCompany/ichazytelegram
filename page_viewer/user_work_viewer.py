@@ -161,7 +161,7 @@ class PrivateUserWorksPageViewer(UserWorksViewer):
         markup = types.InlineKeyboardMarkup()
 
         markup.add(types.InlineKeyboardButton('Одобренные', callback_data=f'my_works approved'),
-                   types.InlineKeyboardButton('Неодобренные', callback_data=f'my_works disapproved'))
+                   types.InlineKeyboardButton('На модерации', callback_data=f'my_works disapproved'))
         return markup
 
 

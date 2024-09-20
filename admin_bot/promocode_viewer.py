@@ -54,7 +54,8 @@ class PromocodeViewer:
                     text='Нет промокодов',
                 )
         except Exception as e:
-            print(e)
+            # print(e)
+            pass
 
     def next_page(self):
         self.current_promocode_id += 1

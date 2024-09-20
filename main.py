@@ -122,7 +122,7 @@ with session_scope() as session:
         video=open('data/videos/cat5.mp4', 'rb').read(),
         name='тест8',
         description='Накопи монеты, примени промокодики и отправь работу',
-        price=10000,
+        price=9999,
         date_to=datetime.date(2024, 8, 25),
         work_type='video',
         userwork_limit=1,

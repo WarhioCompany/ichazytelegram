@@ -179,7 +179,6 @@ class UserWorksPageViewer(UserWorksViewer):
             and_(UserWork.is_approved, UserWork.challenge_id == self.challenge_id)))
         if not works:
             return []
-        print(self.current_page)
         self.pages_amount = len(works)
         return works[self.current_page % self.pages_amount]
 

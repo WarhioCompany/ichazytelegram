@@ -19,20 +19,22 @@ SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 from db_data.models import Base, User, Challenge, UserWork, Prize, Brand, Promocode, user_to_promocodes, UnauthorizedPromocode
 Base.metadata.create_all(engine)
 
-UserWork.__table__.drop(engine)
-user_to_promocodes.drop(engine)
-user_userworks_likes.drop(engine)
-UnauthorizedPromocode.__table__.drop(engine)
-User.__table__.drop(engine)
 
-exit()
-Challenge.__table__.drop(engine)
-Promocode.__table__.drop(engine)
-Prize.__table__.drop(engine)
-Brand.__table__.drop(engine)
-challenge_to_promocode.drop(engine)
+def soft_drop():
+    UserWork.__table__.drop(engine)
+    user_to_promocodes.drop(engine)
+    user_userworks_likes.drop(engine)
+    UnauthorizedPromocode.__table__.drop(engine)
+    User.__table__.drop(engine)
 
-exit()
-User.__table__.drop(engine)
-UserWork.__table__.drop(engine)
-Challenge.__table__.drop(engine)
+
+def hard_drop():
+    soft_drop()
+    Challenge.__table__.drop(engine)
+    Promocode.__table__.drop(engine)
+    Prize.__table__.drop(engine)
+    Brand.__table__.drop(engine)
+    challenge_to_promocode.drop(engine)
+
+
+hard_drop()

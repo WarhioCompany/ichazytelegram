@@ -49,7 +49,8 @@ class PageViewer:
                                               caption=self.escape(media.caption), parse_mode=self.parse_mode,
                                               reply_markup=self.get_markup(button_rows))
         except Exception as e:
-            print(e)
+            # print(e)
+            pass
 
     def delete(self):
         if self.media_id:

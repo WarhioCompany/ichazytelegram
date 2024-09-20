@@ -222,7 +222,6 @@ def start_bot():
                     username=message.from_user.username
                 )
                 if unauthorized_promocode in session.query(UnauthorizedPromocode).all():
-                    print('NONONO')
                     return
                 session.add(unauthorized_promocode)
                 session.commit()

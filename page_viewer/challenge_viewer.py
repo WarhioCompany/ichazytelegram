@@ -111,8 +111,10 @@ class ChallengePageViewer(PageViewer):
         else:
             with session_scope() as session:
                 user = session.query(User).filter(User.telegram_id == self.user_id).one()
+                print(f'CHALLENGE NAME: {self.current_challenge.name}\nPRICE: {self.current_challenge.price}\nUSER BALANCE: {user.coins}')
                 user.coins -= self.current_challenge.price
                 session.commit()
+                print(f"CURRENT BALANCE: {user.coins}")
             self.upload_work(userwork, userwork_type)
 
     def can_submit(self):

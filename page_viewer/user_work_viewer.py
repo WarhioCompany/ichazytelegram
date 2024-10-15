@@ -3,6 +3,7 @@ from db_data.models import User, UserWork
 from telebot import types
 from messages_handler import messages
 from sqlalchemy import and_, not_
+from admin_bot import hard_userworks_messager
 
 from page_viewer.page_viewer import PageViewer
 
@@ -231,6 +232,9 @@ class AdminUserWorksPageViewer(UserWorksViewer):
             user = userwork.user
             challenge = userwork.challenge
 
+            if challenge.is_hard:
+                hard_userworks_messager.add_hard_userwork(userwork)
+
             self.give_prize(user, challenge)
             print(f'gave prize to user {user.name} {challenge.coins_prize}')
             userwork.is_approved = True
@@ -239,6 +243,7 @@ class AdminUserWorksPageViewer(UserWorksViewer):
     def give_prize(self, user, challenge):
         if challenge.is_hard:
             # prize is real
+            print('CURRENTLY NO ACTUAL PRIZE IS ASSIGNED TO USER!!')
             pass
         else:
             user.coins += challenge.coins_prize

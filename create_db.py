@@ -25,7 +25,7 @@ with session_scope() as session:
         winner_limit=15,
         is_hard=True,
         prize=prize,
-        post_link='https://t.me/ichazytelegram/',
+        post_link='https://t.me/ChazyChannel/17',
         promocodes=[]
     )
     session.add(prize)

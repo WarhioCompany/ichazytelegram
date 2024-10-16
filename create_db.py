@@ -10,6 +10,28 @@ from db_data.models import *
 db_session.global_init('db/database.sqlite')
 
 with session_scope() as session:
+    prize = Prize(
+        name='Стикерпак',
+        description='Стикерпак\nОбклей все ленью! Покажи свою истинную натуру'
+    )
+    challenge = Challenge(
+        image=open('data/pics/Леньнедвигательпрогресса.jpg', 'rb').read(),
+        name='#леньнедвигательпрогресса',
+        description="- Кто мы?\n- Люди!\n- Что мы любим больше всего? \n- Лень!\n\nЗамути коллаж своих самых лентяйских моментов. Не больше 4 фото в коллаж! Рассматривать больше, боюсь, будет лень…😵‍💫",
+        price=5000,
+        date_to=datetime.date(2024, 12, 22),
+        work_type='image',
+        userwork_limit=1,
+        winner_limit=15,
+        is_hard=True,
+        prize=prize,
+        post_link='https://t.me/ichazytelegram/',
+        promocodes=[]
+    )
+    session.add(prize)
+    session.add(challenge)
+    session.commit()
+    exit()
     challenge = Challenge(
         image=open('data/pics/Лицомклицу.jpg', 'rb').read(),
         name='#лицомклицу',
@@ -36,24 +58,4 @@ with session_scope() as session:
         is_hard=False,
     )
     session.add(challenge)
-    prize = Prize(
-        name='Стикерпак',
-        description='Стикерпак\nОбклей все ленью! Покажи свою истинную натуру'
-    )
-    challenge = Challenge(
-        image=open('data/pics/Леньнедвигательпрогресса.jpg', 'rb').read(),
-        name='#леньнедвигательпрогресса',
-        description="- Кто мы?\n- Люди!\n- Что мы любим больше всего? \n- Лень!\n\nЗамути коллаж своих самых лентяйских моментов. Не больше 4 фото в коллаж! Рассматривать больше, боюсь, будет лень…😵‍💫",
-        price=5000,
-        date_to=datetime.date(2024, 12, 22),
-        work_type='image',
-        userwork_limit=1,
-        winner_limit=15,
-        is_hard=True,
-        prize=prize,
-        post_link='https://t.me/ichazytelegram/',
-        promocodes=[]
-    )
-    session.add(prize)
-    session.add(challenge)
-    session.commit()
+    

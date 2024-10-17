@@ -1,6 +1,7 @@
 import logging
 
 import telebot
+from telebot import types
 from commands_manager.commands import set_commands
 
 from messages_handler import messages
@@ -45,6 +46,10 @@ def start_bot(token, admin_token):
 
     def send_challenge_page(message):
         viewer = get_user(message).challenge_viewer
+        if get_user(message).user().telegram_username == '':
+            check_is_username_the_same(message)
+            if get_user(message).user().telegram_username == '':
+                return
 
         viewer.show_challenges()
 
@@ -53,6 +58,38 @@ def start_bot(token, admin_token):
             user = session.query(User).filter(User.telegram_id == message.from_user.id).first()
             send_message(message, "user_info", coins=user.coins)
         send_challenge_page(message)
+
+    def check_is_username_the_same(message):
+        with session_scope() as session:
+            telegram_id = message.from_user.id
+            user = session.query(User).filter(User.telegram_id == telegram_id).one()
+            if '+' in user.telegram_username:
+                # phone, wont change I BET
+                return
+            if message.from_user.username != user.telegram_username:
+                if message.from_user.username:
+                    user.telegram_username = message.from_user.username
+                    print(user.telegram_username)
+                else:
+                    get_phone_number_message(message)
+            session.commit()
+
+    def get_phone_number_message(message):
+        keyboard = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True, one_time_keyboard=True)
+        button_phone = types.KeyboardButton(text='Поделиться номером', request_contact=True)
+        keyboard.add(button_phone)  # Add this button
+        bot.send_message(message.chat.id, messages['send_phone_number'], reply_markup=keyboard)
+
+    @bot.message_handler(content_types=['contact'])
+    def phone_number(message):
+        if message.contact is not None:
+            with session_scope() as session:
+                telegram_id = message.from_user.id
+                user = session.query(User).filter(User.telegram_id == telegram_id).one()
+                user.telegram_username = message.contact.phone_number
+                session.commit()
+            send_message(message, "got_phone_number")
+            send_challenge_page(message)
 
     @bot.message_handler(func=lambda call: not get_user(call))
     def non_existent_user(message):

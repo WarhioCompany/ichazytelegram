@@ -32,6 +32,7 @@ challenge_to_promocode = sqlalchemy.Table(
 class User(Base):
     __tablename__ = 'users'
     telegram_id = sqlalchemy.Column(sqlalchemy.String, primary_key=True)
+    telegram_username = sqlalchemy.Column(sqlalchemy.String, default='')
 
     name = sqlalchemy.Column(sqlalchemy.String)
     coins = sqlalchemy.Column(sqlalchemy.Integer, default=0)

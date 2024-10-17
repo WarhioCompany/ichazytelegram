@@ -58,7 +58,7 @@ with session_scope() as session:
         is_hard=False,
     )
     session.add(challenge)
-
+<<<<<<< HEAD
     prize = Prize(
         name='Стикерпак',
         description='Стикерпак\nОбклей все ленью! Покажи свою истинную натуру'
@@ -80,3 +80,6 @@ with session_scope() as session:
     session.add(prize)
     session.add(challenge)
     session.commit()
+=======
+    
+>>>>>>> 1be236de896e2e0c7356f534044cb9551f874e8a

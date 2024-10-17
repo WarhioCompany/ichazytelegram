@@ -24,8 +24,8 @@ def get_pass():
 admins = {}
 
 
-def start_bot(notify, admin_notify):
-    bot = telebot.TeleBot(get_token())
+def start_bot(admin_token, notify, admin_notify):
+    bot = telebot.TeleBot(admin_token)
     admin_notify.set_bot(bot)
 
     def is_admin_authorized(admin_id):

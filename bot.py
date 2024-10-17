@@ -21,14 +21,14 @@ def get_token():
     return input('Bot token: ')
 
 
-def start_bot():
+def start_bot(token, admin_token):
     db_session.global_init('db/database.sqlite')
-    bot = telebot.TeleBot(get_token())
+    bot = telebot.TeleBot(token)
 
     notify = Notify(bot)
     admin_notify = AdminNotify()
 
-    admin_bot.start_bot(notify, admin_notify)
+    admin_bot.start_bot(admin_token, notify, admin_notify)
 
     # FUNCTIONS:
     def send_message(message, message_id, markup=None, parse_mode=None, **kwargs):
@@ -261,6 +261,3 @@ def start_bot():
         user.waiting_for = ''
 
     bot.infinity_polling(logger_level=logging.INFO)
-
-
-start_bot()

@@ -13,9 +13,15 @@ db_session.global_init('db/database.sqlite')
 
 with session_scope() as session:
     try:
-        telegram_username = input("Username: ")
-        user = session.query(User).filter(User.telegram_username == telegram_username).one()
-        print(f'Username: {user.name}\nCurrent balance: {user.coins}')
+        print('Telegram username / Bot username')
+        is_telegram = input("Is this username telegram's (y/n)").lower().strip() == 'y'
+        if is_telegram:
+            telegram_username = input("Telegram username: ")
+            user = session.query(User).filter(User.telegram_username == telegram_username).one()
+        else:
+            bot_username = input("Bot username: ")
+            user = session.query(User).filter(User.name == bot_username).one()
+        print(f'Username: {user.name}\nTelegram: {user.telegram_username}\nCurrent balance: {user.coins}')
         new_balance = int(input("New balance: "))
         user.coins = new_balance
         session.commit()

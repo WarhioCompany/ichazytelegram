@@ -14,7 +14,7 @@ db_session.global_init('db/database.sqlite')
 with session_scope() as session:
     try:
         print('Telegram username / Bot username')
-        is_telegram = input("Is this username telegram's (y/n)").lower().strip() == 'y'
+        is_telegram = input("Is this username telegram's (y/n): ").lower().strip() == 'y'
         if is_telegram:
             telegram_username = input("Telegram username: ")
             user = session.query(User).filter(User.telegram_username == telegram_username).one()

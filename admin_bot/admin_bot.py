@@ -37,7 +37,7 @@ def start_bot(admin_token, notify, admin_notify):
             view_userworks(message)
         else:
             bot.send_message(message.from_user.id, 'Введите пароль')
-            admins[message.from_user.id] = {'is_authorized': False}
+            admins[message.from_user.id] = {'is_authorized': False, 'waiting_for': '', 'buf': {}}
 
     @bot.message_handler(func=lambda message: not admins[message.from_user.id]['is_authorized'])
     def auth(message):
@@ -58,6 +58,11 @@ def start_bot(admin_token, notify, admin_notify):
             admin_notify.add_admin(message.from_user.id)
         else:
             bot.send_message(message.from_user.id, 'Неверный пароль')
+
+    @bot.message_handler(commands=['add_currency'])
+    def add_currency(message):
+        bot.send_message(message.from_user.id, "Введите ник в телеграме или телефон, если ника нет")
+        admins[message.from_user.id]['waiting_for'] = 'telegram_id'
 
     @bot.message_handler(commands=['view_challenges'])
     def view_userworks(message):
@@ -128,6 +133,37 @@ def start_bot(admin_token, notify, admin_notify):
         #         user.used_promocodes.append(promocode)
         #         session.commit()
         # bot.delete_message(call.from_user.id, call.message.id)
+
+    # WAIT FOR
+    @bot.message_handler(func=lambda message: admins[message.from_user.id]['waiting_for'] == 'telegram_id')
+    def get_telegram_id(message):
+        with session_scope() as session:
+            user = session.query(User).filter(User.telegram_username == message.text).all()
+            if len(user) == 0:
+                bot.send_message(message.from_user.id, f"Юзер с ником {message.text} не найден")
+            else:
+                user = user[0]
+                bot.send_message(message.from_user.id, f"Ник в боте {user.name}\nБаланс {user.coins}")
+                bot.send_message(message.from_user.id, "Сколько монет добавить (отрицательное, если убавить)")
+
+                admins[message.from_user.id]['buf']['telegram_id'] = message.text
+                admins[message.from_user.id]['waiting_for'] = 'new_balance'
+
+    @bot.message_handler(func=lambda message: admins[message.from_user.id]['waiting_for'] == 'new_balance')
+    def update_user_balance(message):
+        if not message.text.replace('-', '', 1).isdigit():
+            bot.send_message(message.from_user.id, 'Некорректный ввод')
+        with session_scope() as session:
+            username = admins[message.from_user.id]['buf']['telegram_id']
+            user = session.query(User).filter(User.telegram_username == username).one()
+
+            dif = int(message.text)
+            user.coins += dif
+            session.commit()
+            bot.send_message(message.from_user.id, f"Новый баланс {user.coins}")
+            admins[message.from_user.id]['buf'] = {}
+            admins[message.from_user.id]['waiting_for'] = ''
+
 
     thread = threading.Thread(target=bot.infinity_polling)
     thread.start()

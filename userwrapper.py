@@ -5,11 +5,14 @@ from page_viewer.user_work_viewer import UserWorksPageViewer, PrivateUserWorksPa
 
 
 class UserData:
-    def __init__(self, bot, telegram_id, name=None):
+    def __init__(self, bot, telegram_id, name=None, invited_by=''):
         self.waiting_for = ''
         self.user_id = telegram_id
+
+        self.invited_by = invited_by
+
         if name:
-            self.create_user(name)
+            self.create_user(name, invited_by)
 
         self.challenge_viewer = ChallengePageViewer(bot, telegram_id)
         self.userworks_viewer = UserWorksPageViewer(bot, telegram_id)
@@ -20,10 +23,11 @@ class UserData:
             user = session.query(User).filter(User.telegram_id == self.user_id).first()
             return user
 
-    def create_user(self, name):
+    def create_user(self, name, invited_by):
         user = User(
             telegram_id=self.user_id,
-            name=name
+            name=name,
+            invited_by=invited_by
         )
         with session_scope() as session:
             session.add(user)

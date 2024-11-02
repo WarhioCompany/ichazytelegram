@@ -1,6 +1,6 @@
 from telebot import types
 from db_data import models
-from db_data.db_session import session_scope, create_session
+from db_data.db_session import session_scope
 from db_data.models import UnauthorizedPromocode
 
 
@@ -10,7 +10,6 @@ class PromocodeViewer:
         self.admin_id = admin_id
         self.current_promocode_id = 0
         self.message_id = None
-        self._session = create_session()
 
     def reset(self):
         self.current_promocode_id = 0
@@ -26,8 +25,8 @@ class PromocodeViewer:
         if promocode:
             self.message_id = self.bot.send_message(
                 self.admin_id,
-                f'@{promocode.username} '
-                f'использовал промокод: {promocode.promocode.promo}',
+                f'@{promocode["username"]} '
+                f'использовал промокод: {promocode["promocode_string"]}',
                 reply_markup=self.get_markup()
             ).message_id
         else:
@@ -43,8 +42,8 @@ class PromocodeViewer:
                 self.bot.edit_message_text(
                     chat_id=self.admin_id,
                     message_id=self.message_id,
-                    text=f'@{promocode.username} '
-                    f'использовал промокод: {promocode.promocode.promo}',
+                    text=f'@{promocode["username"]} '
+                    f'использовал промокод: {promocode["promocode_string"]}',
                     reply_markup=self.get_markup()
                 )
             else:
@@ -77,22 +76,34 @@ class PromocodeViewer:
         return markup
 
     def get_promocode(self):
-        promocodes = self._session.query(UnauthorizedPromocode).all()
-        if not promocodes:
-            return []
+        with session_scope() as session:
+            promocodes = session.query(UnauthorizedPromocode).all()
 
-        self.current_promocode_id %= len(promocodes)
-        return promocodes[self.current_promocode_id]
+            if not promocodes:
+                return []
+
+            self.current_promocode_id %= len(promocodes)
+            promocode = promocodes[self.current_promocode_id]
+            return {'username': promocode.username, 'promocode_string': promocode.promocode.promo, 'id': promocode.id}
 
     def approve(self):
-        promo = self.get_promocode()
-        promo.user.used_promocodes.append(promo.promocode)
-        self._session.delete(promo)
-        self._session.commit()
-        self.update()
+        promo_buf = self.get_promocode()
+        with session_scope() as session:
+            promo = session.query(UnauthorizedPromocode).filter(UnauthorizedPromocode.id == promo_buf['id']).one()
+            promo.user.used_promocodes.append(promo.promocode)
+
+            session.commit()
+
+        self.delete_unauth_promocode()
 
     def disapprove(self):
-        promo = self.get_promocode()
-        self._session.delete(promo)
-        self._session.commit()
+        self.delete_unauth_promocode()
+
+    def delete_unauth_promocode(self):
+        promo_buf = self.get_promocode()
+        with session_scope() as session:
+            promo = session.query(UnauthorizedPromocode).filter(UnauthorizedPromocode.id == promo_buf['id']).one()
+            session.delete(promo)
+            session.commit()
+
         self.update()

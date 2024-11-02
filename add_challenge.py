@@ -7,7 +7,7 @@ from db_data import db_session
 import datetime
 from db_data.models import *
 
-db_session.global_init('../db/database.sqlite')
+db_session.global_init('db/database.sqlite')
 
 
 def add_challenge():
@@ -15,9 +15,9 @@ def add_challenge():
         with session_scope() as session:
             image, video = None, None
             if input('Preview type (img, vid): ').lower().strip() == 'img':
-                image = open('../' + input('Relative image path: '), 'rb').read()
+                image = open(input('Relative image path: '), 'rb').read()
             else:
-                video = open('../' + input('Relative video path: '), 'rb').read()
+                video = open(input('Relative video path: '), 'rb').read()
             name = input('Name: ')
             description = input('Description: ')
             price = int(input('Price (if free - 0): '))

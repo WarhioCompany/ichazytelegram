@@ -1,4 +1,6 @@
 from db_data import models
+from db_data.db_session import session_scope
+from db_data.models import UserWork
 from messages_handler import messages
 from telebot import types
 
@@ -8,13 +10,18 @@ class Notify:
         self.bot = bot
 
     def userwork_approved(self, userwork):
-        if userwork.challenge.is_hard:
-            self.bot.send_photo(userwork.user_id, photo=userwork.data, caption=messages['userwork_approved_hard'])
-        else:
-            self.bot.send_photo(userwork.user_id, photo=userwork.data, caption=messages['userwork_approved'])
+        with session_scope() as session:
+            userwork = session.query(UserWork).filter(UserWork.id == userwork.id).one()
+            if userwork.challenge.is_hard:
+                self.bot.send_photo(userwork.user_id, photo=userwork.data, caption=messages['userwork_approved_hard'])
+            else:
+                self.bot.send_photo(userwork.user_id, photo=userwork.data, caption=messages['userwork_approved'])
 
     def userwork_disapproved(self, userwork):
         self.bot.send_photo(userwork.user_id, photo=userwork.data, caption=messages['userwork_disapproved'])
+
+    def balance_update(self, user_id, message, amount):
+        self.bot.send_message(user_id, messages[message].format(amount=amount))
 
 
 class AdminNotify:

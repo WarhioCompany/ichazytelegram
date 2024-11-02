@@ -34,6 +34,8 @@ class User(Base):
     telegram_id = sqlalchemy.Column(sqlalchemy.String, primary_key=True)
     telegram_username = sqlalchemy.Column(sqlalchemy.String, default='')
 
+    invited_by = sqlalchemy.Column(sqlalchemy.String)
+
     name = sqlalchemy.Column(sqlalchemy.String)
     coins = sqlalchemy.Column(sqlalchemy.Integer, default=0)
 

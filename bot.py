@@ -15,6 +15,8 @@ from db_data.db_session import session_scope
 from notifications.notify import Notify, AdminNotify
 import admin_bot.admin_bot as admin_bot
 
+import traceback
+
 users = {}
 
 
@@ -98,7 +100,10 @@ def start_bot(token, admin_token):
     def start_command(message):
         set_commands(message, bot, 'commands_manager/commands_config.json')
 
-        user = UserData(bot, message.from_user.id)
+        start_args = message.text.split()[1:] if len(message.text.split()) > 1 else []
+        invited_by = start_args[0] if start_args else ''
+
+        user = UserData(bot, message.from_user.id, invited_by=invited_by)
         users[message.from_user.id] = user
 
         if user.user():
@@ -138,6 +143,10 @@ def start_bot(token, admin_token):
     @bot.message_handler(commands=['support'])
     def collaboration(message):
         send_message(message, "support")
+
+    @bot.message_handler(commands=['get_my_link'])
+    def get_my_link(message):
+        send_message(message, "get_my_link", link=f'https://t.me/chazychannelbot?start={message.from_user.id}')
 
     # CALLBACKS:
     @bot.callback_query_handler(func=lambda call: call.data == 'participate')
@@ -231,7 +240,8 @@ def start_bot(token, admin_token):
     # User manipulation:
     @bot.message_handler(func=lambda message: get_user(message).waiting_for == 'name')
     def new_user(message):
-        user = UserData(bot, message.from_user.id, message.text)
+        user = users[message.from_user.id]
+        user = UserData(bot, message.from_user.id, name=message.text, invited_by=user.invited_by)
         users[message.from_user.id] = user
         # users[message.from_user.id] = User(telegram_id=message.from_user.id, name=message.text, bot=bot)
         bot.send_message(
@@ -295,4 +305,9 @@ def start_bot(token, admin_token):
         # I'm kinda paranoid that it can cause some problems in the future, so just keep in mind it's here
         user.waiting_for = ''
 
-    bot.infinity_polling(logger_level=logging.INFO)
+    while True:
+        try:
+            bot.polling(non_stop=True, logger_level=logging.INFO)
+        except Exception as e:
+            print(traceback.format_exc())
+    #bot.infinity_polling(logger_level=logging.INFO)

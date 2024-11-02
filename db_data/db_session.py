@@ -38,9 +38,3 @@ def session_scope():
         yield session
     finally:
       session.close()
-
-
-def create_session() -> Session:
-    if __factory:
-        return __factory
-    raise Exception("Session is not initialized")

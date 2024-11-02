@@ -1,4 +1,7 @@
 {
   "view_challenges": "Все челленджи",
-  "view_promocodes": "Все промокоды"
+  "view_promocodes": "Все промокоды",
+  "add_currency_by_tg": "Добавить монеты по нику в тг/телефону",
+  "add_currency_by_bot": "Добавить монеты по нику в боте",
+  "link_friend": "Привязать друга"
 }

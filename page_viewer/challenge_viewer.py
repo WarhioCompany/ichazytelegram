@@ -109,12 +109,16 @@ class ChallengePageViewer(PageViewer):
         if self.current_challenge.work_type != userwork_type:
             self.bot.send_message(self.user_id, messages["incorrect_userwork_type"])
         else:
-            with session_scope() as session:
-                user = session.query(User).filter(User.telegram_id == self.user_id).one()
-                print(f'CHALLENGE NAME: {self.current_challenge.name}\nPRICE: {self.current_challenge.price}\nUSER BALANCE: {user.coins}')
-                user.coins -= self.current_challenge.price
-                session.commit()
-                print(f"CURRENT BALANCE: {user.coins}")
+            if self.current_challenge.price != 0:
+                with session_scope() as session:
+                    user = session.query(User).filter(User.telegram_id == self.user_id).one()
+
+                    print(f'{user.name}({user.coins}): {self.current_challenge.name}({self.current_challenge.price})')
+                    user.coins -= self.current_challenge.price
+
+                    session.commit()
+                    print(f"{user.name}({user.coins})")
+
             self.upload_work(userwork, userwork_type)
 
     def can_submit(self):

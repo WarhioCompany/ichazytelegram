@@ -37,4 +37,4 @@ def hard_drop():
     challenge_to_promocode.drop(engine)
 
 
-hard_drop()
+soft_drop()

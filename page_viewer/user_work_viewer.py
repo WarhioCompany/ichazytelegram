@@ -1,4 +1,4 @@
-from db_data.db_session import session_scope, create_session
+from db_data.db_session import session_scope
 from db_data.models import User, UserWork
 from telebot import types
 from messages_handler import messages
@@ -18,12 +18,12 @@ class UserWorksViewer(PageViewer):
         self.messages_handler = messages_handler
         self.get_button_rows = get_button_rows
 
-        self._session = None
+        # self._session = None
         self.pages_amount = -1
 
     def show_works(self, *args):
         self.reset()
-        self._session = create_session()
+        # self._session = create_session()
 
         self.current_work = self.get_userwork_func()
         if self.current_work:
@@ -58,12 +58,14 @@ class UserWorksViewer(PageViewer):
             self.send_message(self.messages_handler('nothing_found'))
 
     def works_page_text(self):
-        return self.messages_handler('page_text').format(
-            username=self.current_work.user.name,
-            challenge=self.current_work.challenge.name,
-            current_page=self.current_page % self.pages_amount + 1,
-            pages_amount=self.pages_amount
-        )
+        with session_scope() as session:
+            current_work = session.query(UserWork).filter(UserWork.id == self.current_work.id).one()
+            return self.messages_handler('page_text').format(
+                username=current_work.user.name,
+                challenge=current_work.challenge.name,
+                current_page=self.current_page % self.pages_amount + 1,
+                pages_amount=self.pages_amount
+            )
 
     def does_exist(self):
         return bool(self.current_work)
@@ -72,10 +74,12 @@ class UserWorksViewer(PageViewer):
         buttons = []
         user_dummy = User(telegram_id=f'{self.user_id}')
         # ❤ 🤍
-        if user_dummy in self.current_work.users_liked:
-            s = f'{len(self.current_work.users_liked)}❤'
-        else:
-            s = f'{len(self.current_work.users_liked)}🤍'
+        with session_scope() as session:
+            users_liked = session.query(UserWork).filter(UserWork.id == self.current_work.id).one().users_liked
+            if user_dummy in users_liked:
+                s = f'{len(users_liked)}❤'
+            else:
+                s = f'{len(users_liked)}🤍'
         buttons.append(types.InlineKeyboardButton(s, callback_data=f'userwork_like {self.page_type} {0}'))
         return [buttons]
 
@@ -88,7 +92,7 @@ class UserWorksViewer(PageViewer):
             else:
                 userwork.users_liked.append(user)
             db_sess.commit()
-        self._session.expire_all()
+        # self._session.expire_all()
         self.current_work = self.get_userwork_func()
         self.update()
 
@@ -118,8 +122,9 @@ class PrivateUserWorksPageViewer(UserWorksViewer):
         super().show_works()
 
     def get_userworks(self):
-        works = list(self._session.query(UserWork).filter(and_(UserWork.user_id == self.user_id,
-                                                               self.is_approved == UserWork.is_approved)))
+        with session_scope() as session:
+            works = list(session.query(UserWork).filter(and_(UserWork.user_id == self.user_id,
+                                                             self.is_approved == UserWork.is_approved)))
 
         if not works:
             return []
@@ -144,8 +149,10 @@ class PrivateUserWorksPageViewer(UserWorksViewer):
                                                           reply_markup=markup).message_id
 
     def delete_userwork(self):
-        self._session.query(UserWork).filter(UserWork.id == self.current_work.id).delete()
-        self._session.commit()
+        with session_scope() as session:
+            session.query(UserWork).filter(UserWork.id == self.current_work.id).delete()
+            session.commit()
+
         self.update()
         self.delete_confirmation_message()
 
@@ -176,10 +183,13 @@ class UserWorksPageViewer(UserWorksViewer):
         super().show_works()
 
     def get_userwork(self):
-        works = list(self._session.query(UserWork).filter(
-            and_(UserWork.is_approved, UserWork.challenge_id == self.challenge_id)))
+        with session_scope() as session:
+            works = list(session.query(UserWork).filter(
+                and_(UserWork.is_approved, UserWork.challenge_id == self.challenge_id)))
+
         if not works:
             return []
+
         self.pages_amount = len(works)
         return works[self.current_page % self.pages_amount]
 
@@ -200,7 +210,9 @@ class AdminUserWorksPageViewer(UserWorksViewer):
         super().show_works()
 
     def get_userwork(self):
-        works = list(self._session.query(UserWork).filter(not_(UserWork.is_approved)))
+        with session_scope() as session:
+            works = list(session.query(UserWork).filter(not_(UserWork.is_approved)))
+
         if not works:
             return []
 
@@ -212,7 +224,9 @@ class AdminUserWorksPageViewer(UserWorksViewer):
         elif message == 'userworks_picker':
             return 'Опции'
         elif message == 'page_text':
-            return f'Челлендж {self.current_work.challenge.name}\nЮзер {self.current_work.user.name}'
+            with session_scope() as session:
+                current_work = session.query(UserWork).filter(UserWork.id == self.current_work.id).one()
+                return f'Челлендж {current_work.challenge.name}\nЮзер {current_work.user.name}'
 
     def generate_buttons(self):
         return [[
@@ -222,9 +236,9 @@ class AdminUserWorksPageViewer(UserWorksViewer):
 
     def remove_userwork(self):
         userwork = self.current_work
-        self._session.query(UserWork).filter(UserWork.id == userwork.id).delete()
-
-        self._session.commit()
+        with session_scope() as session:
+            session.query(UserWork).filter(UserWork.id == userwork.id).delete()
+            session.commit()
 
     def approve_userwork(self):
         with session_scope() as session:

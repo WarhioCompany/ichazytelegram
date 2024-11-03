@@ -24,8 +24,8 @@ def get_token():
     return input('Bot token: ')
 
 
-def start_bot(token, admin_token):
-    db_session.global_init('db/database.sqlite')
+def start_bot(token, admin_token, db_path):
+    db_session.global_init(db_path)
     bot = telebot.TeleBot(token)
 
     notify = Notify(bot)
@@ -45,6 +45,9 @@ def start_bot(token, admin_token):
     def get_user(message):
         if message.from_user.id in users:
             return users[message.from_user.id]
+        else:
+            # it's for waiting_for checkers
+            return UserData(bot, '')
 
     def send_challenge_page(message):
         viewer = get_user(message).challenge_viewer
@@ -91,10 +94,6 @@ def start_bot(token, admin_token):
             bot.send_message(message.chat.id, messages['got_phone_number'], reply_markup=types.ReplyKeyboardRemove())
             send_challenge_page(message)
 
-    @bot.message_handler(func=lambda call: not get_user(call))
-    def non_existent_user(message):
-        start_command(message)
-
     # COMMANDS:
     @bot.message_handler(commands=['start', 'help'])
     def start_command(message):
@@ -114,6 +113,15 @@ def start_bot(token, admin_token):
             send_message(message, "new_user")
             send_message(message, "enter_nickname")
             user.waiting_for = 'name'
+
+    @bot.callback_query_handler(func=lambda call: not get_user(call))
+    def non_existent_user(call):
+        send_message(call, "start_error_message")
+        bot.answer_callback_query(call.id)
+
+    @bot.message_handler(func=lambda call: not get_user(call))
+    def non_existent_user(message):
+        send_message(message, "start_error_message")
 
     @bot.message_handler(commands=['view_challenges'])
     def view_challenges(message):
@@ -151,11 +159,13 @@ def start_bot(token, admin_token):
     # CALLBACKS:
     @bot.callback_query_handler(func=lambda call: call.data == 'participate')
     def participate(call):
-        error_message = get_user(call).challenge_viewer.can_submit()
+        user = get_user(call)
+
+        error_message = user.challenge_viewer.can_submit()
         if error_message:
             bot.send_message(call.from_user.id, error_message, parse_mode='MarkdownV2', disable_web_page_preview=True)
         else:
-            get_user(call).waiting_for = 'work'
+            user.waiting_for = 'work'
             send_message(call, "user_participation")
         bot.answer_callback_query(call.id)
 
@@ -172,47 +182,55 @@ def start_bot(token, admin_token):
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith('prev_page'))
     def prev_page(message):
+        user = get_user(message)
+
         identifier = message.data.split()[-1]
 
         if identifier == 'challenges':
-            get_user(message).challenge_viewer.prev_page()
+            user.challenge_viewer.prev_page()
+
             # ОБНУЛЯЕМ КНОПКУ "Участвовать"
-            get_user(message).waiting_for = ''
+            user.waiting_for = ''
         elif identifier == 'userworks':
-            get_user(message).userworks_viewer.prev_page()
+            user.userworks_viewer.prev_page()
         elif identifier == 'private_userworks':
-            get_user(message).private_userworks_viewer.prev_page()
+            user.private_userworks_viewer.prev_page()
         bot.answer_callback_query(message.id)
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith('next_page'))
     def next_page(message):
+        user = get_user(message)
         identifier = message.data.split()[-1]
 
         if identifier == 'challenges':
-            get_user(message).challenge_viewer.next_page()
+            user.challenge_viewer.next_page()
+
             # ОБНУЛЯЕМ КНОПКУ "Участвовать"
-            get_user(message).waiting_for = ''
+            user.waiting_for = ''
         elif identifier == 'userworks':
-            get_user(message).userworks_viewer.next_page()
+            user.userworks_viewer.next_page()
         elif identifier == 'private_userworks':
-            get_user(message).private_userworks_viewer.next_page()
+            user.private_userworks_viewer.next_page()
         bot.answer_callback_query(message.id)
 
     @bot.callback_query_handler(func=lambda call: call.data == 'user_works')
     def show_user_works(message):
         user = get_user(message)
+
         user.userworks_viewer.show_works(user.challenge_viewer.current_challenge.id)
         bot.answer_callback_query(message.id)
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith('userwork_like'))
     def like_userwork(message):
+        user = get_user(message)
+
         data = message.data.split()
         work_id = int(data[-1])
         identifier = data[1]
         if identifier == 'userworks':
-            get_user(message).userworks_viewer.like_userwork(work_id)
+            user.userworks_viewer.like_userwork(work_id)
         elif identifier == 'private_userworks':
-            get_user(message).private_userworks_viewer.like_userwork(work_id)
+            user.private_userworks_viewer.like_userwork(work_id)
         bot.answer_callback_query(message.id)
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith('delete_private_userwork '))

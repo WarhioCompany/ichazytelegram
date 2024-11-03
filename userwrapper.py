@@ -18,6 +18,9 @@ class UserData:
         self.userworks_viewer = UserWorksPageViewer(bot, telegram_id)
         self.private_userworks_viewer = PrivateUserWorksPageViewer(bot, telegram_id)
 
+    def __bool__(self):
+        return bool(self.user_id)
+
     def user(self):
         with session_scope() as session:
             user = session.query(User).filter(User.telegram_id == self.user_id).first()

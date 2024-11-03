@@ -49,6 +49,15 @@ def start_bot(admin_token, notify, admin_notify):
             bot.send_message(message.from_user.id, 'Введите пароль')
             admins[message.from_user.id] = {'is_authorized': False, 'waiting_for': '', 'buf': {}}
 
+    @bot.callback_query_handler(func=lambda call: call.from_user.id not in admins)
+    def non_existent_user(call):
+        bot.send_message(call.from_user.id, "Запустите бота -> /start")
+        bot.answer_callback_query(call.id)
+
+    @bot.message_handler(func=lambda message: message.from_user.id not in admins)
+    def non_existent_user(message):
+        bot.send_message(message.from_user.id, "Запустите бота -> /start")
+
     @bot.message_handler(func=lambda message: not admins[message.from_user.id]['is_authorized'])
     def auth(message):
         password = message.text
@@ -143,8 +152,19 @@ def start_bot(admin_token, notify, admin_notify):
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith('disapprove_userwork'))
     def disapprove_userwork(message):
+        current_work = admins[message.from_user.id]['userwork_viewer'].current_work
+
         # delete userwork from db or set the status to checked, send notification
-        notify.userwork_disapproved(admins[message.from_user.id]['userwork_viewer'].current_work)
+        notify.userwork_disapproved(current_work)
+
+        # add coins back, if challenge is priced
+        with session_scope() as session:
+            price = session.query(UserWork).filter(UserWork.id == current_work.id).one().challenge.price
+            if price != 0:
+                user = session.query(User).filter(User.telegram_id == current_work.user_id).one()
+                user.coins += price
+                session.commit()
+
         admins[message.from_user.id]['userwork_viewer'].remove_userwork()
 
         admins[message.from_user.id]['userwork_viewer'].next_page()

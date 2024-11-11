@@ -17,8 +17,10 @@ class Notify:
             else:
                 self.bot.send_photo(userwork.user_id, photo=userwork.data, caption=messages['userwork_approved'])
 
-    def userwork_disapproved(self, userwork):
-        self.bot.send_photo(userwork.user_id, photo=userwork.data, caption=messages['userwork_disapproved'])
+    def userwork_disapproved(self, userwork, disapprove_option):
+        reason = messages[f'disapprove_{disapprove_option}']
+        self.bot.send_photo(userwork.user_id, photo=userwork.data,
+                            caption=messages['userwork_disapproved'] + '\n' + reason)
 
     def balance_update(self, user_id, message, amount):
         self.bot.send_message(user_id, messages[message].format(amount=amount))

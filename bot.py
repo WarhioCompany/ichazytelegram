@@ -1,4 +1,5 @@
 import logging
+import sys
 
 import telebot
 from telebot import types
@@ -16,6 +17,7 @@ from notifications.notify import Notify, AdminNotify
 import admin_bot.admin_bot as admin_bot
 
 import traceback
+from logger import bot_logger as log
 
 users = {}
 
@@ -93,6 +95,8 @@ def start_bot(token, admin_token, db_path):
                 session.commit()
             bot.send_message(message.chat.id, messages['got_phone_number'], reply_markup=types.ReplyKeyboardRemove())
             send_challenge_page(message)
+        else:
+            log.warning_user_activity(message.from_user.id, 'has no phone number nor username')
 
     # COMMANDS:
     @bot.message_handler(commands=['start', 'help'])
@@ -101,6 +105,8 @@ def start_bot(token, admin_token, db_path):
 
         start_args = message.text.split()[1:] if len(message.text.split()) > 1 else []
         invited_by = start_args[0] if start_args else ''
+
+        log.log_message_sent(message)
 
         user = UserData(bot, message.from_user.id, invited_by=invited_by)
         users[message.from_user.id] = user
@@ -116,49 +122,60 @@ def start_bot(token, admin_token, db_path):
 
     @bot.callback_query_handler(func=lambda call: not get_user(call))
     def non_existent_user(call):
+        log.log_user_activity(call.from_user.id, "did not start the bot")
         send_message(call, "start_error_message")
         bot.answer_callback_query(call.id)
 
     @bot.message_handler(func=lambda call: not get_user(call))
     def non_existent_user(message):
+        log.log_user_activity(message.from_user.id, "did not start the bot")
         send_message(message, "start_error_message")
 
     @bot.message_handler(commands=['view_challenges'])
     def view_challenges(message):
+        log.log_message_sent(message)
         send_challenge_page(message)
 
     @bot.message_handler(commands=['my_works'])
     def my_works(message):
+        log.log_message_sent(message)
         get_user(message).private_userworks_viewer.send_mode_picker()
 
     @bot.message_handler(commands=['balance'])
     def balance(message):
+        log.log_message_sent(message)
         send_message(message, "balance", coins=get_user(message).user().coins)
 
     @bot.message_handler(commands=['shop'])
     def shop(message):
+        log.log_message_sent(message)
         send_message(message, "shop")
 
     @bot.message_handler(commands=['partnership'])
     def collaboration(message):
+        log.log_message_sent(message)
         send_message(message, "partnership")
 
     @bot.message_handler(commands=['promocode'])
     def collaboration(message):
+        log.log_message_sent(message)
         get_user(message).waiting_for = 'promocode'
         send_message(message, "enter_promocode")
 
     @bot.message_handler(commands=['support'])
     def collaboration(message):
+        log.log_message_sent(message)
         send_message(message, "support")
 
     @bot.message_handler(commands=['get_my_link'])
     def get_my_link(message):
+        log.log_message_sent(message)
         send_message(message, "get_my_link", link=f'https://t.me/chazychannelbot?start={message.from_user.id}')
 
     # CALLBACKS:
     @bot.callback_query_handler(func=lambda call: call.data == 'participate')
     def participate(call):
+        log.log_user_callback(call)
         user = get_user(call)
 
         error_message = user.challenge_viewer.can_submit()
@@ -182,6 +199,7 @@ def start_bot(token, admin_token, db_path):
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith('prev_page'))
     def prev_page(message):
+        log.log_user_callback(message)
         user = get_user(message)
 
         identifier = message.data.split()[-1]
@@ -199,6 +217,7 @@ def start_bot(token, admin_token, db_path):
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith('next_page'))
     def next_page(message):
+        log.log_user_callback(message)
         user = get_user(message)
         identifier = message.data.split()[-1]
 
@@ -215,6 +234,7 @@ def start_bot(token, admin_token, db_path):
 
     @bot.callback_query_handler(func=lambda call: call.data == 'user_works')
     def show_user_works(message):
+        log.log_user_callback(message)
         user = get_user(message)
 
         user.userworks_viewer.show_works(user.challenge_viewer.current_challenge.id)
@@ -222,6 +242,7 @@ def start_bot(token, admin_token, db_path):
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith('userwork_like'))
     def like_userwork(message):
+        log.log_user_callback(message)
         user = get_user(message)
 
         data = message.data.split()
@@ -235,6 +256,7 @@ def start_bot(token, admin_token, db_path):
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith('delete_private_userwork '))
     def delete_private_userwork(message):
+        log.log_user_callback(message)
         work_id = int(message.data.split()[-1])
 
         get_user(message).private_userworks_viewer.send_delete_confirmation(work_id)
@@ -242,22 +264,27 @@ def start_bot(token, admin_token, db_path):
 
     @bot.callback_query_handler(func=lambda call: call.data == 'delete_private_userwork_confirm')
     def delete_private_userwork_confirm(message):
+        log.log_user_callback(message)
         get_user(message).private_userworks_viewer.delete_userwork()
         bot.answer_callback_query(message.id)
 
     @bot.callback_query_handler(func=lambda call: call.data == 'delete_private_userwork_decline')
     def delete_private_userwork_decline(message):
+        log.log_user_callback(message)
         get_user(message).private_userworks_viewer.delete_confirmation_message()
         bot.answer_callback_query(message.id)
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith('my_works '))
     def my_works_mode(message):
+        log.log_user_callback(message)
         get_user(message).private_userworks_viewer.show_works('disapproved' not in message.data)
         bot.answer_callback_query(message.id)
 
     # User manipulation:
     @bot.message_handler(func=lambda message: get_user(message).waiting_for == 'name')
     def new_user(message):
+        log.log_user_activity(message.from_user.id, f'registration end, bot name: {message.text}')
+
         user = users[message.from_user.id]
         user = UserData(bot, message.from_user.id, name=message.text, invited_by=user.invited_by)
         users[message.from_user.id] = user
@@ -273,12 +300,20 @@ def start_bot(token, admin_token, db_path):
     def enter_promocode(message):
         promocode_text = message.text
         with session_scope() as session:
-            promocode = session.query(Promocode).filter(Promocode.promo == promocode_text).one()
+            promocode = session.query(Promocode).filter(Promocode.promo == promocode_text).all()
+            if len(promocode) == 0:
+                log.log_user_activity(message.from_user.id, f'promocode incorrect "{promocode_text}"')
+                send_message(message, 'promocode_incorrect')
+                return
+            promocode = promocode[0]
+
             used_promocodes = session.query(User).filter(User.telegram_id == message.from_user.id).one().used_promocodes
             if promocode in used_promocodes:
+                log.log_user_activity(message.from_user.id, f'promocode already used "{promocode_text}"')
                 send_message(message, 'promocode_already_used')
             elif promocode:
                 send_message(message, 'promocode_correct', contact=promocode.telegram_contact)
+                log.log_user_activity(message.from_user.id, f'promocode correct "{promocode_text}"')
                 unauthorized_promocode = UnauthorizedPromocode(
                     user_id=message.from_user.id,
                     promocode_id=promocode.id,
@@ -289,16 +324,19 @@ def start_bot(token, admin_token, db_path):
                 session.add(unauthorized_promocode)
                 session.commit()
                 admin_notify.user_used_promocode(message.from_user, promocode)
-            else:
-                send_message(message, 'promocode_incorrect')
+
 
     # USERWORK SUBMISSION
     @bot.message_handler(content_types=['video'])
     def upload_work_video(message):
         user = get_user(message)
         if user.waiting_for != 'work':
+            log.log_user_activity(message.from_user.id, 'tried to send VIDEO but did not select the challenge')
             send_message(message, "pick_challenge")
             return
+
+        challenge_name = user.challenge_viewer.current_challenge.name
+        log.log_user_activity(message.from_user.id, f'submitted VIDEO userwork for {challenge_name}')
 
         file_info = bot.get_file(message.video.file_id)
         downloaded_file = bot.download_file(file_info.file_path)
@@ -312,8 +350,12 @@ def start_bot(token, admin_token, db_path):
         # ФУНКЦИЯ ВЫПОЛНЯЕТСЯ АСИНХРОННО, ПОЭТОМУ МОЖНО УСПЕТЬ ОТПРАВИТЬ ДВЕ РАБОТЫ, ПРИ МЕДЛЕННОМ ИНТЕРНЕТЕ СЕРВА
         user = get_user(message)
         if user.waiting_for != 'work':
+            log.log_user_activity(message.from_user.id, 'tried to send IMAGE but did not select the challenge')
             send_message(message, "pick_challenge")
             return
+
+        challenge_name = user.challenge_viewer.current_challenge.name
+        log.log_user_activity(message.from_user.id, f'submitted IMAGE userwork for {challenge_name}')
 
         image_size = 2  # 0 -> 2
         file_info = bot.get_file(message.photo[min(len(message.photo) - 1, image_size)].file_id)
@@ -326,6 +368,10 @@ def start_bot(token, admin_token, db_path):
     while True:
         try:
             bot.polling(non_stop=True, logger_level=logging.INFO)
+        except KeyboardInterrupt:
+            print('Interrupted')
+            sys.exit(130)
         except Exception as e:
+            log.warning(f'Restarting bot. {e}')
             print(traceback.format_exc())
     #bot.infinity_polling(logger_level=logging.INFO)

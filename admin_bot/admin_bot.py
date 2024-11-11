@@ -1,4 +1,5 @@
 import telebot
+from telebot import types
 
 from admin_bot.promocode_viewer import PromocodeViewer
 from db_data.db_session import session_scope
@@ -19,6 +20,12 @@ def get_pass():
     with open('admin_bot/pass.secret', 'r') as file:
         return file.readline()
 
+
+disapprove_options = [
+    'Из интернета',
+    'Условия не выполнены',
+    'Низкое качество'
+]
 
 # id: is_authorized
 admins = {}
@@ -109,6 +116,10 @@ def start_bot(admin_token, notify, admin_notify):
         bot.send_message(message.from_user.id, "Кто пригласил? (ник в боте)")
         admins[message.from_user.id]['waiting_for'] = 'link_friend_first_username'
 
+    @bot.message_handler(commands=['get_user'])
+    def get_user(message):
+        pass
+
     # CALL DATA
     @bot.callback_query_handler(func=lambda call: call.data == 'prev_page userworks')
     def prev_challenge_page(message):
@@ -152,23 +163,29 @@ def start_bot(admin_token, notify, admin_notify):
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith('disapprove_userwork'))
     def disapprove_userwork(message):
-        current_work = admins[message.from_user.id]['userwork_viewer'].current_work
+        markup = types.InlineKeyboardMarkup()
 
-        # delete userwork from db or set the status to checked, send notification
-        notify.userwork_disapproved(current_work)
+        for option_id in range(len(disapprove_options)):
+            markup.add(types.InlineKeyboardButton(
+                disapprove_options[option_id],
+                callback_data=f'disapprove_option {option_id}'
+            ))
 
-        # add coins back, if challenge is priced
-        with session_scope() as session:
-            price = session.query(UserWork).filter(UserWork.id == current_work.id).one().challenge.price
-            if price != 0:
-                user = session.query(User).filter(User.telegram_id == current_work.user_id).one()
-                user.coins += price
-                session.commit()
+        bot.send_message(message.from_user.id, 'Выберите опцию дизапрува:', reply_markup=markup)
 
-        admins[message.from_user.id]['userwork_viewer'].remove_userwork()
-
-        admins[message.from_user.id]['userwork_viewer'].next_page()
         bot.answer_callback_query(message.id)
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('disapprove_option'))
+    def disapprove_option(call):
+        option_id = int(call.data.split()[1])
+
+        current_work = admins[call.from_user.id]['userwork_viewer'].current_work
+        notify.userwork_disapproved(current_work, option_id)
+        admins[call.from_user.id]['userwork_viewer'].disapprove_userwork()
+
+        bot.delete_message(call.from_user.id, call.message.id)
+
+        bot.answer_callback_query(call.id)
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith('promo_confirmation'))
     def promocode_confirmation(call):
@@ -265,6 +282,8 @@ def start_bot(admin_token, notify, admin_notify):
             bot.send_message(message.from_user.id, f"{user.telegram_id} теперь привязан к {invited_by}")
             user.invited_by = invited_by
             session.commit()
+
+
 
     thread = threading.Thread(target=bot.infinity_polling)
     thread.start()

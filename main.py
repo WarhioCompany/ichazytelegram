@@ -1,4 +1,6 @@
 from bot import start_bot
+from logger.bot_logger import logger_init
+logger_init()
 
 if input('Test? (Enter if no): ') == '':
     start_bot(input('Bot token: '), input('Admin token: '), 'database/database.sqlite')

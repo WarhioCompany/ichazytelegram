@@ -53,9 +53,9 @@ def start_bot(token, admin_token, db_path):
 
     def send_challenge_page(message):
         viewer = get_user(message).challenge_viewer
-        send_page = check_is_username_the_same(message)
+        can_send_page = check_is_username_the_same(message)
 
-        if send_page:
+        if can_send_page:
             viewer.show_challenges()
 
     def greeting(message):
@@ -76,6 +76,7 @@ def start_bot(token, admin_token, db_path):
                 if user.telegram_username == '':
                     get_phone_number_message(message)
                     return False
+            user.telegram_name = message.from_user.full_name
             session.commit()
         return True
 

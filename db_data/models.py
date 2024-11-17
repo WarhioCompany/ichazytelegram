@@ -33,6 +33,7 @@ class User(Base):
     __tablename__ = 'users'
     telegram_id = sqlalchemy.Column(sqlalchemy.String, primary_key=True)
     telegram_username = sqlalchemy.Column(sqlalchemy.String, default='')
+    telegram_name = sqlalchemy.Column(sqlalchemy.String, default='')
 
     invited_by = sqlalchemy.Column(sqlalchemy.String)
 

@@ -95,6 +95,11 @@ def start_bot(admin_token, notify, admin_notify):
         bot.send_message(message.from_user.id, "Введите ник в боте")
         admins[message.from_user.id]['waiting_for'] = 'bot_username'
 
+    @bot.message_handler(commands=['add_currency_by_name'])
+    def add_currency_by_name(message):
+        bot.send_message(message.from_user.id, "Введите имя в тг")
+        admins[message.from_user.id]['waiting_for'] = 'telegram_name'
+
     @bot.message_handler(commands=['view_challenges'])
     def view_userworks(message):
         if is_admin_authorized(message.from_user.id):
@@ -215,6 +220,21 @@ def start_bot(admin_token, notify, admin_notify):
             else:
                 user = user[0]
                 bot.send_message(message.from_user.id, f"Ник в боте {user.name}\nБаланс {user.coins}\nTG: {user.telegram_username}")
+                bot.send_message(message.from_user.id, "Сколько монет добавить (отрицательное, если убавить)")
+
+                admins[message.from_user.id]['buf']['telegram_id'] = user.telegram_id
+                admins[message.from_user.id]['waiting_for'] = 'new_balance'
+
+    @bot.message_handler(func=lambda message: admins[message.from_user.id]['waiting_for'] == 'telegram_name')
+    def get_telegram_name(message):
+        with session_scope() as session:
+            user = session.query(User).filter(User.telegram_name == message.text).all()
+            if len(user) == 0:
+                bot.send_message(message.from_user.id, f"Юзер с ником {message.text} не найден")
+            else:
+                user = user[0]
+                bot.send_message(message.from_user.id,
+                                 f"Ник в боте {user.name}\nБаланс {user.coins}\nTG: {user.telegram_username}")
                 bot.send_message(message.from_user.id, "Сколько монет добавить (отрицательное, если убавить)")
 
                 admins[message.from_user.id]['buf']['telegram_id'] = user.telegram_id

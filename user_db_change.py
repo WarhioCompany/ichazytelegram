@@ -71,20 +71,22 @@ class User(Base):
     __tablename__ = 'users'
     telegram_id = sqlalchemy.Column(sqlalchemy.String, primary_key=True)
     telegram_username = sqlalchemy.Column(sqlalchemy.String, default='')
+    invited_by = sqlalchemy.Column(sqlalchemy.String)
     name = sqlalchemy.Column(sqlalchemy.String)
     coins = sqlalchemy.Column(sqlalchemy.Integer, default=0)
     def __eq__(self, other):
         return self.telegram_id == other.telegram_id
 Base.metadata.create_all(engine)
 users = __factory.query(User).all()
-print(users)
+print(list(users))
 User.__table__.drop(engine)
-print(users)
+print(list(users))
 class UserNew(Base):
     __tablename__ = 'users'
     __table_args__ = {'extend_existing': True}
     telegram_id = sqlalchemy.Column(sqlalchemy.String, primary_key=True)
     telegram_username = sqlalchemy.Column(sqlalchemy.String)
+    telegram_name = sqlalchemy.Column(sqlalchemy.String)
     invited_by = sqlalchemy.Column(sqlalchemy.String)
     name = sqlalchemy.Column(sqlalchemy.String)
     coins = sqlalchemy.Column(sqlalchemy.Integer, default=0)
@@ -94,7 +96,9 @@ Base.metadata.create_all(engine)
 for user in users:
     u = UserNew(
         telegram_id=user.telegram_id,
-        telegram_username='',
+        telegram_username=user.telegram_username,
+        telegram_name='',
+        invited_by=user.invited_by,
         name=user.name,
         coins=user.coins,
     )

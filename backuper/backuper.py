@@ -11,7 +11,7 @@ timer = None
 
 
 SERVICE_ACCOUNT = 'backuper/forward-lead-365711-0b30ae0a36de.json' # Please set the file of your credentials of service account.
-UPLOAD_FILE = 'db/database.sqlite' # Please set the filename with the path you want to upload.
+UPLOAD_FILE = 'database/database.sqlite' # Please set the filename with the path you want to upload.
 FOLDER_ID = '1_4tVqm1biCgHvvdNJuOH8JLLjEHLWQV4' # Please set the folder ID that you shared your folder with the service account.
 
 

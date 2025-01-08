@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from db_data.db_session import session_scope
 from db_data.models import User, UserWork
 from telebot import types
@@ -60,11 +62,14 @@ class UserWorksViewer(PageViewer):
     def works_page_text(self):
         with session_scope() as session:
             current_work = session.query(UserWork).filter(UserWork.id == self.current_work.id).one()
+            date_uploaded = datetime.fromtimestamp(current_work.date_uploaded).strftime('%d/%m/%y %H:%M:%S')
+            #date_uploaded = datetime.fromtimestamp(current_work.date_uploaded).strftime('%c')
             return self.messages_handler('page_text').format(
                 username=current_work.user.name,
                 challenge=current_work.challenge.name,
                 current_page=self.current_page % self.pages_amount + 1,
-                pages_amount=self.pages_amount
+                pages_amount=self.pages_amount,
+                date_uploaded=date_uploaded
             )
 
     def does_exist(self):
@@ -203,8 +208,19 @@ class UserWorksPageViewer(UserWorksViewer):
 
 
 class AdminUserWorksPageViewer(UserWorksViewer):
-    def __init__(self, bot, user_id):
+    def __init__(self, bot, user_id, notify):
         super().__init__(bot, user_id, 'userworks', self.get_userwork, self.messages_handler, self.generate_buttons)
+        self.are_you_sure_message_id = None
+        self.are_you_sure_status = ''
+
+        self.notify = notify
+
+        self.disapprove_option_message_id = None
+        self.disapprove_options = [
+            'Из интернета',
+            'Условия не выполнены',
+            'Низкое качество'
+        ]
 
     def show_works(self):
         super().show_works()
@@ -218,21 +234,85 @@ class AdminUserWorksPageViewer(UserWorksViewer):
 
         return works[self.current_page % len(works)]
 
+    def next_page(self):
+        self.delete_are_you_sure_message()
+        self.delete_options_message()
+        super(AdminUserWorksPageViewer, self).next_page()
+
+    def prev_page(self):
+        self.delete_are_you_sure_message()
+        self.delete_options_message()
+        super(AdminUserWorksPageViewer, self).prev_page()
+
     def messages_handler(self, message):
         if message == 'nothing_found':
             return messages["no_userworks_found"]
         elif message == 'userworks_picker':
             return 'Опции'
         elif message == 'page_text':
-            with session_scope() as session:
-                current_work = session.query(UserWork).filter(UserWork.id == self.current_work.id).one()
-                return f'Челлендж {current_work.challenge.name}\nЮзер {current_work.user.name}'
+            return 'Челлендж: {challenge}\nЮзер: {username}\nДата: {date_uploaded}'
 
     def generate_buttons(self):
         return [[
-            types.InlineKeyboardButton('approve', callback_data=f'approve_userwork {self.current_work.id}'),
-            types.InlineKeyboardButton('disapprove', callback_data=f'disapprove_userwork {self.current_work.id}')
+            types.InlineKeyboardButton('approve', callback_data=f'approve_button'),
+            types.InlineKeyboardButton('disapprove', callback_data=f'disapprove_button')
         ]]
+
+    def send_are_you_sure_message(self, status):
+        self.delete_are_you_sure_message()
+        markup = types.InlineKeyboardMarkup()
+        markup.add(
+            types.InlineKeyboardButton('Да', callback_data=f'admin_userwork_sure 1'),
+            types.InlineKeyboardButton('Нет', callback_data=f'admin_userwork_sure 0')
+        )
+        self.are_you_sure_message_id = self.bot.send_message( self.user_id, 'Вы уверены?', reply_markup=markup).message_id
+        self.are_you_sure_status = status
+
+    def delete_are_you_sure_message(self):
+        if not self.are_you_sure_message_id:
+            return
+
+        self.bot.delete_message(self.user_id, self.are_you_sure_message_id)
+        self.are_you_sure_status = ''
+        self.are_you_sure_message_id = None
+
+    def send_disapprove_options_message(self):
+        markup = types.InlineKeyboardMarkup()
+
+        for option_id in range(len(self.disapprove_options)):
+            markup.add(types.InlineKeyboardButton(
+                self.disapprove_options[option_id],
+                callback_data=f'disapprove_option {option_id}'
+            ))
+
+        self.disapprove_option_message_id = self.bot.send_message(
+            self.user_id,
+            'Выберите опцию дизапрува:',
+            reply_markup=markup
+        ).message_id
+
+    def delete_options_message(self):
+        if not self.disapprove_option_message_id:
+            return
+
+        self.bot.delete_message(self.user_id, self.disapprove_option_message_id)
+        self.disapprove_option_message_id = None
+
+    def approve_button(self):
+        self.send_are_you_sure_message('approve')
+
+    def disapprove_button(self):
+        self.send_are_you_sure_message('disapprove')
+
+    def sure_button(self):
+        if self.are_you_sure_status == 'approve':
+            self.approve_userwork()
+        else:
+            self.send_disapprove_options_message()
+        self.delete_are_you_sure_message()
+
+    def cancel_button(self):
+        self.delete_are_you_sure_message()
 
     def remove_userwork(self):
         userwork = self.current_work
@@ -241,6 +321,19 @@ class AdminUserWorksPageViewer(UserWorksViewer):
             session.commit()
 
     def approve_userwork(self):
+        # Add coins to user who this one was invited by
+        with session_scope() as session:
+            invited_by = session.query(User).filter(User.telegram_id == self.current_work.user_id).one().invited_by
+
+            if invited_by:
+                amount = 50
+
+                user = session.query(User).filter(User.telegram_id == invited_by).one()
+                user.coins += amount
+
+                session.commit()
+                self.notify.balance_update(invited_by, "referral_coins", amount)
+
         with session_scope() as session:
             userwork = session.query(UserWork).filter(UserWork.id == self.current_work.id).one()
             user = userwork.user
@@ -253,8 +346,11 @@ class AdminUserWorksPageViewer(UserWorksViewer):
             print(f'gave prize to user {user.name} {challenge.coins_prize}')
             userwork.is_approved = True
             session.commit()
+        self.notify.userwork_approved(self.current_work)
+        self.next_page()
 
-    def disapprove_userwork(self):
+    def disapprove_userwork(self, option_id):
+        self.delete_options_message()
         # add coins back, if challenge is priced
         with session_scope() as session:
             price = session.query(UserWork).filter(UserWork.id == self.current_work.id).one().challenge.price
@@ -263,6 +359,7 @@ class AdminUserWorksPageViewer(UserWorksViewer):
                 user.coins += price
                 session.commit()
 
+        self.notify.userwork_disapproved(self.current_work, option_id)
         self.remove_userwork()
         self.next_page()
 

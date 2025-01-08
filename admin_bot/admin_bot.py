@@ -10,7 +10,7 @@ import threading
 
 from page_viewer.user_work_viewer import AdminUserWorksPageViewer
 from commands_manager.commands import set_commands
-
+from user_sub_checker import UserSubChecker
 
 def get_token():
     return input('Admin token: ')
@@ -21,19 +21,25 @@ def get_pass():
         return file.readline()
 
 
-disapprove_options = [
-    'Из интернета',
-    'Условия не выполнены',
-    'Низкое качество'
-]
-
 # id: is_authorized
 admins = {}
+sub_checker = None
 
 
 def start_bot(admin_token, notify, admin_notify):
+    global sub_checker
     bot = telebot.TeleBot(admin_token)
     admin_notify.set_bot(bot)
+    admin_notify.start_notifying()
+
+    def user_subbed(user_id):
+        with session_scope() as session:
+            invited_by = session.query(User).filter(User.telegram_id == user_id).one().invited_by
+        add_coins_to_user(invited_by, 1000)
+        notify.balance_update(invited_by, 'referral_coins', 1000)
+        print(f'user {user_id} subbed to the channel, {invited_by} gets 1000')
+
+    sub_checker = UserSubChecker(bot, channel_id=-1002275632371, user_subbed_func=user_subbed, seconds_delay=1)#60*60*24*2)
 
     def is_admin_authorized(admin_id):
         return admins.get(admin_id, {'is_authorized': False})['is_authorized']
@@ -76,7 +82,7 @@ def start_bot(admin_token, notify, admin_notify):
 
             set_commands(message, bot, 'commands_manager/admin_commands_config.json')
 
-            admins[message.from_user.id]['userwork_viewer'] = AdminUserWorksPageViewer(bot, message.from_user.id)
+            admins[message.from_user.id]['userwork_viewer'] = AdminUserWorksPageViewer(bot, message.from_user.id, notify)
             admins[message.from_user.id]['promocodes_viewer'] = PromocodeViewer(bot, message.from_user.id)
             print(message.from_user.username, 'is authorized')
 
@@ -99,6 +105,11 @@ def start_bot(admin_token, notify, admin_notify):
     def add_currency_by_name(message):
         bot.send_message(message.from_user.id, "Введите имя в тг")
         admins[message.from_user.id]['waiting_for'] = 'telegram_name'
+
+    @bot.message_handler(commands=['add_currency_to_all'])
+    def add_currency_to_all(message):
+        bot.send_message(message.from_user.id, 'Введите количество монет')
+        admins[message.from_user.id]['waiting_for'] = 'add_coins_amount'
 
     @bot.message_handler(commands=['view_challenges'])
     def view_userworks(message):
@@ -146,49 +157,53 @@ def start_bot(admin_token, notify, admin_notify):
         admins[message.from_user.id]['promocodes_viewer'].next_page()
         bot.answer_callback_query(message.id)
 
-    @bot.callback_query_handler(func=lambda call: call.data.startswith('approve_userwork'))
-    def approve_userwork(message):
+    @bot.callback_query_handler(func=lambda call: call.data == 'approve_button')
+    def approve_button(message):
         # add coins to user, send notification, change status to approved
-        admins[message.from_user.id]['userwork_viewer'].approve_userwork()
+        admins[message.from_user.id]['userwork_viewer'].approve_button()
 
-        userwork = admins[message.from_user.id]['userwork_viewer'].current_work
-        notify.userwork_approved(userwork)
+        # userwork = admins[message.from_user.id]['userwork_viewer'].current_work
+        # notify.userwork_approved(userwork)
 
-        # TODO: add coins to user who this one was invited by
-        with session_scope() as session:
-            invited_by = session.query(User).filter(User.telegram_id == userwork.user_id).one().invited_by
-
-            if invited_by:
-                amount = 50
-                add_coins_to_user(invited_by, amount)
-                notify.balance_update(invited_by, "referral_coins", amount)
-
-        admins[message.from_user.id]['userwork_viewer'].next_page()
-        bot.answer_callback_query(message.id)
-
-    @bot.callback_query_handler(func=lambda call: call.data.startswith('disapprove_userwork'))
-    def disapprove_userwork(message):
-        markup = types.InlineKeyboardMarkup()
-
-        for option_id in range(len(disapprove_options)):
-            markup.add(types.InlineKeyboardButton(
-                disapprove_options[option_id],
-                callback_data=f'disapprove_option {option_id}'
-            ))
-
-        bot.send_message(message.from_user.id, 'Выберите опцию дизапрува:', reply_markup=markup)
+        # # TODO: add coins to user who this one was invited by
+        # with session_scope() as session:
+        #     invited_by = session.query(User).filter(User.telegram_id == userwork.user_id).one().invited_by
+        #
+        #     if invited_by:
+        #         amount = 50
+        #         add_coins_to_user(invited_by, amount)
+        #         notify.balance_update(invited_by, "referral_coins", amount)
 
         bot.answer_callback_query(message.id)
+
+    @bot.callback_query_handler(func=lambda call: call.data == 'disapprove_button')
+    def disapprove_button(message):
+        # markup = types.InlineKeyboardMarkup()
+        #
+        # for option_id in range(len(disapprove_options)):
+        #     markup.add(types.InlineKeyboardButton(
+        #         disapprove_options[option_id],
+        #         callback_data=f'disapprove_option {option_id}'
+        #     ))
+        #
+        # bot.send_message(message.from_user.id, 'Выберите опцию дизапрува:', reply_markup=markup)
+
+        admins[message.from_user.id]['userwork_viewer'].disapprove_button()
+
+        bot.answer_callback_query(message.id)
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('admin_userwork_sure'))
+    def admin_userworks_page_confirmation(message):
+        confirmed = message.data.split()[1] == '1'
+        if confirmed:
+            admins[message.from_user.id]['userwork_viewer'].sure_button()
+        else:
+            admins[message.from_user.id]['userwork_viewer'].cancel_button()
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith('disapprove_option'))
     def disapprove_option(call):
         option_id = int(call.data.split()[1])
-
-        current_work = admins[call.from_user.id]['userwork_viewer'].current_work
-        notify.userwork_disapproved(current_work, option_id)
-        admins[call.from_user.id]['userwork_viewer'].disapprove_userwork()
-
-        bot.delete_message(call.from_user.id, call.message.id)
+        admins[call.from_user.id]['userwork_viewer'].disapprove_userwork(option_id)
 
         bot.answer_callback_query(call.id)
 
@@ -258,6 +273,7 @@ def start_bot(admin_token, notify, admin_notify):
     def update_user_balance(message):
         if not message.text.replace('-', '', 1).isdigit():
             bot.send_message(message.from_user.id, 'Некорректный ввод')
+            return
 
         telegram_id = admins[message.from_user.id]['buf']['telegram_id']
         amount = int(message.text)
@@ -303,7 +319,34 @@ def start_bot(admin_token, notify, admin_notify):
             user.invited_by = invited_by
             session.commit()
 
+    @bot.message_handler(func=lambda message: admins[message.from_user.id]['waiting_for'] == 'add_coins_amount')
+    def add_coins_to_all_amount(message):
+        if not message.text.replace('-', '', 1).isdigit():
+            bot.send_message(message.from_user.id, 'Некорректный ввод')
+            return
 
+        admins[message.from_user.id]['buf']['coins_amount'] = int(message.text)
+        admins[message.from_user.id]['waiting_for'] = 'add_coins_condition'
+
+        bot.send_message(message.from_user.id, 'Введите условие добавления монет (">100" больше 100, "<24" меньше 24')
+
+    @bot.message_handler(func=lambda message: admins[message.from_user.id]['waiting_for'] == 'add_coins_condition')
+    def add_coins_to_all_condition(message):
+        condition = message.text[0]
+        amount = int(message.text[1:])
+        coins_amount = admins[message.from_user.id]['buf']['coins_amount']
+        with session_scope() as session:
+            if condition == '>':
+                users = session.query(User).filter(User.coins > amount).all()
+            else:
+                users = session.query(User).filter(User.coins < amount).all()
+            for user in users:
+                user.coins += coins_amount
+                notify.balance_update(user.telegram_id, ("added_coins" if coins_amount > 0 else "discard_coins"), coins_amount)
+
+            bot.send_message(message.from_user.id, f'Добавлено {coins_amount} монет {len(users)} юзерам')
+            session.commit()
+        clear_admin_buf(message)
 
     thread = threading.Thread(target=bot.infinity_polling)
     thread.start()

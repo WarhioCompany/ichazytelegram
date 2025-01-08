@@ -2,6 +2,8 @@ from sqlalchemy.orm import DeclarativeBase
 import sqlalchemy.orm as orm
 import sqlalchemy
 
+from datetime import datetime
+
 
 class Base(DeclarativeBase):
     pass
@@ -92,7 +94,7 @@ class UserWork(Base):
     challenge_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('challenges.id'))
     challenge = orm.relationship('Challenge')
 
-    date_uploaded = sqlalchemy.Column(sqlalchemy.Date)
+    date_uploaded = sqlalchemy.Column(sqlalchemy.Integer)
     type = sqlalchemy.Column(sqlalchemy.String)
     is_approved = sqlalchemy.Column(sqlalchemy.Boolean, default=False)
 
@@ -149,3 +151,20 @@ class UnauthorizedPromocode(Base):
 
     def __eq__(self, other):
         return self.promocode_id == other.promocode_id
+
+
+class Event(Base):
+    __tablename__ = 'events'
+
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
+
+    user_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('users.telegram_id'))
+    user = orm.relationship('User')
+
+    event_type = sqlalchemy.Column(sqlalchemy.String)
+    date = sqlalchemy.Column(sqlalchemy.Integer)
+
+    active = sqlalchemy.Column(sqlalchemy.BOOLEAN)
+
+    def time_elapsed(self):
+        return (datetime.now() - datetime.fromtimestamp(self.date)).total_seconds()

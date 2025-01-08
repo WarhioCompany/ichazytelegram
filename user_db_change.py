@@ -1,3 +1,4 @@
+from datetime import datetime
 from random import randint
 import sqlalchemy
 import sqlalchemy.orm as orm
@@ -71,21 +72,6 @@ class User(Base):
     __tablename__ = 'users'
     telegram_id = sqlalchemy.Column(sqlalchemy.String, primary_key=True)
     telegram_username = sqlalchemy.Column(sqlalchemy.String, default='')
-    invited_by = sqlalchemy.Column(sqlalchemy.String)
-    name = sqlalchemy.Column(sqlalchemy.String)
-    coins = sqlalchemy.Column(sqlalchemy.Integer, default=0)
-    def __eq__(self, other):
-        return self.telegram_id == other.telegram_id
-Base.metadata.create_all(engine)
-users = __factory.query(User).all()
-print(list(users))
-User.__table__.drop(engine)
-print(list(users))
-class UserNew(Base):
-    __tablename__ = 'users'
-    __table_args__ = {'extend_existing': True}
-    telegram_id = sqlalchemy.Column(sqlalchemy.String, primary_key=True)
-    telegram_username = sqlalchemy.Column(sqlalchemy.String)
     telegram_name = sqlalchemy.Column(sqlalchemy.String)
     invited_by = sqlalchemy.Column(sqlalchemy.String)
     name = sqlalchemy.Column(sqlalchemy.String)
@@ -93,14 +79,64 @@ class UserNew(Base):
     def __eq__(self, other):
         return self.telegram_id == other.telegram_id
 Base.metadata.create_all(engine)
-for user in users:
-    u = UserNew(
-        telegram_id=user.telegram_id,
-        telegram_username=user.telegram_username,
-        telegram_name='',
-        invited_by=user.invited_by,
-        name=user.name,
-        coins=user.coins,
+
+userworks = __factory.query(UserWork).all()
+print(len(userworks))
+UserWork.__table__.drop(engine)
+print(len(userworks))
+class UserworkNew(Base):
+    __tablename__ = 'userworks'
+    __table_args__ = {'extend_existing': True}
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
+    data = sqlalchemy.Column(sqlalchemy.BLOB)
+    user_id = sqlalchemy.Column(sqlalchemy.Integer)
+    challenge_id = sqlalchemy.Column(sqlalchemy.Integer)
+    date_uploaded = sqlalchemy.Column(sqlalchemy.Integer)
+    type = sqlalchemy.Column(sqlalchemy.String)
+    is_approved = sqlalchemy.Column(sqlalchemy.Boolean, default=False)
+
+    def __eq__(self, other):
+        return self.id == other.id
+
+Base.metadata.create_all(engine)
+for userwork in userworks:
+    print(datetime.combine(userwork.date_uploaded, datetime.min.time()))
+    u = UserworkNew(
+        id=userwork.id,
+        data=userwork.data,
+        user_id=userwork.user_id,
+        challenge_id=userwork.challenge_id,
+        date_uploaded=datetime.combine(userwork.date_uploaded, datetime.min.time()).timestamp(),
+        type=userwork.type,
+        is_approved=userwork.is_approved
     )
     __factory.add(u)
+# users = __factory.query(User).all()
+# print(list(users))
+# User.__table__.drop(engine)
+# print(list(users))
+# class UserNew(Base):
+#     __tablename__ = 'users'
+#     __table_args__ = {'extend_existing': True}
+#     telegram_id = sqlalchemy.Column(sqlalchemy.String, primary_key=True)
+#     telegram_username = sqlalchemy.Column(sqlalchemy.String)
+#     telegram_name = sqlalchemy.Column(sqlalchemy.String)
+#     invited_by = sqlalchemy.Column(sqlalchemy.String)
+#     name = sqlalchemy.Column(sqlalchemy.String)
+#     coins = sqlalchemy.Column(sqlalchemy.Integer, default=0)
+#     def __eq__(self, other):
+#         return self.telegram_id == other.telegram_id
+# Base.metadata.create_all(engine)
+# for user in users:
+#     u = UserNew(
+#         telegram_id=user.telegram_id,
+#         telegram_username=user.telegram_username,
+#         telegram_name='',
+#         invited_by=user.invited_by,
+#         name=user.name,
+#         coins=user.coins,
+#     )
+#     __factory.add(u)
+
+
 __factory.commit()

@@ -6,7 +6,7 @@ from telebot import types
 from commands_manager.commands import set_commands
 
 from messages_handler import messages
-# from user import User
+
 from userwrapper import UserData
 from db_data.models import User, Promocode, UnauthorizedPromocode
 
@@ -18,6 +18,9 @@ import admin_bot.admin_bot as admin_bot
 
 import traceback
 from logger import bot_logger as log
+from backuper import backuper
+import event_handler
+from event_handler import EventType
 
 users = {}
 
@@ -36,12 +39,35 @@ def start_bot(token, admin_token, db_path):
     admin_bot.start_bot(admin_token, notify, admin_notify)
 
     # FUNCTIONS:
-    def send_message(message, message_id, markup=None, parse_mode=None, **kwargs):
+    def send_message(user_message=None, message_id=None, user_id=None, text=None, markup=None, parse_mode=None, **kwargs):
+        if not user_id:
+            if not user_message:
+                raise Exception('Have to provide either user_id or user_message')
+            user_id = user_message.from_user.id
+        if not text:
+            if not message_id:
+                raise Exception('No text provided')
+            text = messages[message_id]
+        text = text.format(**kwargs)
+
+        def escape(msg):
+            return msg.translate(str.maketrans({"!": r"\!",
+                                                "^": r"\^",
+                                                "#": r"\#",
+                                                ".": r"\.",
+                                                "-": r"\-"}))
+
+        if text.startswith('~'):
+            print('yep')
+            text = escape(text[1:])
+            parse_mode = 'MarkdownV2'
+
         bot.send_message(
-            message.from_user.id,
-            messages[message_id].format(**kwargs),
+            user_id,
+            text,
             reply_markup=markup,
-            parse_mode=parse_mode
+            parse_mode=parse_mode,
+            disable_web_page_preview=True,
         )
 
     def get_user(message):
@@ -84,7 +110,8 @@ def start_bot(token, admin_token, db_path):
         keyboard = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True, one_time_keyboard=True)
         button_phone = types.KeyboardButton(text='Поделиться номером', request_contact=True)
         keyboard.add(button_phone)  # Add this button
-        bot.send_message(message.chat.id, messages['send_phone_number'], reply_markup=keyboard)
+        # bot.send_message(message.chat.id, messages['send_phone_number'], reply_markup=keyboard)
+        send_message(user_id=message.chat.id, message_id='send_phone_number', markup=keyboard)
 
     @bot.message_handler(content_types=['contact'])
     def phone_number(message):
@@ -94,7 +121,8 @@ def start_bot(token, admin_token, db_path):
                 user = session.query(User).filter(User.telegram_id == telegram_id).one()
                 user.telegram_username = message.contact.phone_number
                 session.commit()
-            bot.send_message(message.chat.id, messages['got_phone_number'], reply_markup=types.ReplyKeyboardRemove())
+            # bot.send_message(message.chat.id, messages['got_phone_number'], reply_markup=types.ReplyKeyboardRemove())
+            send_message(user_id=message.chat.id, message_id='got_phone_number', reply_markup=types.ReplyKeyboardRemove())
             send_challenge_page(message)
         else:
             log.warning_user_activity(message.from_user.id, 'has no phone number nor username')
@@ -181,7 +209,8 @@ def start_bot(token, admin_token, db_path):
 
         error_message = user.challenge_viewer.can_submit()
         if error_message:
-            bot.send_message(call.from_user.id, error_message, parse_mode='MarkdownV2', disable_web_page_preview=True)
+            # bot.send_message(call.from_user.id, error_message, parse_mode='MarkdownV2', disable_web_page_preview=True)
+            send_message(call, error_message)
         else:
             user.waiting_for = 'work'
             send_message(call, "user_participation")
@@ -289,12 +318,20 @@ def start_bot(token, admin_token, db_path):
         user = users[message.from_user.id]
         user = UserData(bot, message.from_user.id, name=message.text, invited_by=user.invited_by)
         users[message.from_user.id] = user
+
+        if user.invited_by:
+            event_handler.add_event(message.from_user.id, EventType.user_was_invited)
+            #admin_bot.sub_checker.add_user_id(message.from_user.id)
+
+        # TODO: add week delay and send message about channel
+        event_handler.add_event(message.from_user.id, EventType.user_registered)
         # users[message.from_user.id] = User(telegram_id=message.from_user.id, name=message.text, bot=bot)
-        bot.send_message(
-            message.from_user.id,
-            messages['registration_end'].replace('.', r'\.').replace('-', r'\-').replace('!', r'\!'),
-            parse_mode='MarkdownV2'
-        )
+        # bot.send_message(
+        #     message.from_user.id,
+        #     messages['registration_end'].replace('.', r'\.').replace('-', r'\-').replace('!', r'\!'),
+        #     parse_mode='MarkdownV2'
+        # )
+        send_message(message, 'registration_end')
         greeting(message)
 
     @bot.message_handler(func=lambda message: get_user(message).waiting_for == 'promocode')
@@ -325,7 +362,6 @@ def start_bot(token, admin_token, db_path):
                 session.add(unauthorized_promocode)
                 session.commit()
                 admin_notify.user_used_promocode(message.from_user, promocode)
-
 
     # USERWORK SUBMISSION
     @bot.message_handler(content_types=['video'])
@@ -375,4 +411,4 @@ def start_bot(token, admin_token, db_path):
         except Exception as e:
             log.warning(f'Restarting bot. {e}')
             print(traceback.format_exc())
-    #bot.infinity_polling(logger_level=logging.INFO)
+    # bot.infinity_polling(logger_level=logging.INFO)

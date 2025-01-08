@@ -190,7 +190,7 @@ class ChallengePageViewer(PageViewer):
             challenge_id=self.current_challenge.id,
             data=userwork,
             type=userwork_type,
-            date_uploaded=datetime.now(),
+            date_uploaded=datetime.now().timestamp(),
         )
         with session_scope() as db_sess:
             db_sess.add(work)

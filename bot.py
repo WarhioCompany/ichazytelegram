@@ -58,7 +58,6 @@ def start_bot(token, admin_token, db_path):
                                                 "-": r"\-"}))
 
         if text.startswith('~'):
-            print('yep')
             text = escape(text[1:])
             parse_mode = 'MarkdownV2'
 
@@ -181,18 +180,18 @@ def start_bot(token, admin_token, db_path):
         send_message(message, "shop")
 
     @bot.message_handler(commands=['partnership'])
-    def collaboration(message):
+    def partnership(message):
         log.log_message_sent(message)
         send_message(message, "partnership")
 
     @bot.message_handler(commands=['promocode'])
-    def collaboration(message):
+    def promocode(message):
         log.log_message_sent(message)
         get_user(message).waiting_for = 'promocode'
         send_message(message, "enter_promocode")
 
     @bot.message_handler(commands=['support'])
-    def collaboration(message):
+    def support(message):
         log.log_message_sent(message)
         send_message(message, "support")
 
@@ -210,7 +209,7 @@ def start_bot(token, admin_token, db_path):
         error_message = user.challenge_viewer.can_submit()
         if error_message:
             # bot.send_message(call.from_user.id, error_message, parse_mode='MarkdownV2', disable_web_page_preview=True)
-            send_message(call, error_message)
+            send_message(call, text=error_message)
         else:
             user.waiting_for = 'work'
             send_message(call, "user_participation")

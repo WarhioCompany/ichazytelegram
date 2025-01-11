@@ -95,7 +95,7 @@ class UserWork(Base):
     challenge = orm.relationship('Challenge')
 
     date_uploaded = sqlalchemy.Column(sqlalchemy.Integer)
-    type = sqlalchemy.Column(sqlalchemy.String)
+    type = sqlalchemy.Column(sqlalchemy.String)  # image / video
     is_approved = sqlalchemy.Column(sqlalchemy.Boolean, default=False)
 
     users_liked = orm.relationship('User', secondary=user_userworks_likes, back_populates='liked_userworks')

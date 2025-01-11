@@ -1,6 +1,8 @@
 import telebot
 from telebot import types
 
+from admin_bot.admin_model import Admin
+from admin_bot.challenge_adder import ChallengeAdder
 from admin_bot.promocode_viewer import PromocodeViewer
 from db_data.db_session import session_scope
 from db_data.models import *
@@ -11,6 +13,8 @@ import threading
 from page_viewer.user_work_viewer import AdminUserWorksPageViewer
 from commands_manager.commands import set_commands
 from user_sub_checker import UserSubChecker
+
+from chainer import Chainer
 
 def get_token():
     return input('Admin token: ')
@@ -42,7 +46,7 @@ def start_bot(admin_token, notify, admin_notify):
     sub_checker = UserSubChecker(bot, channel_id=-1002275632371, user_subbed_func=user_subbed, seconds_delay=1)#60*60*24*2)
 
     def is_admin_authorized(admin_id):
-        return admins.get(admin_id, {'is_authorized': False})['is_authorized']
+        return admin_id in admins and admins[admin_id].is_authorized
 
     def add_coins_to_user(telegram_id, coins_amount):
         with session_scope() as session:
@@ -51,8 +55,8 @@ def start_bot(admin_token, notify, admin_notify):
             session.commit()
 
     def clear_admin_buf(message):
-        admins[message.from_user.id]['buf'] = {}
-        admins[message.from_user.id]['waiting_for'] = ''
+        admins[message.from_user.id].buf = {}
+        admins[message.from_user.id].waiting_for = ''
 
     @bot.message_handler(commands=['start', 'help'])
     def start_command(message):
@@ -60,7 +64,7 @@ def start_bot(admin_token, notify, admin_notify):
             view_userworks(message)
         else:
             bot.send_message(message.from_user.id, 'Введите пароль')
-            admins[message.from_user.id] = {'is_authorized': False, 'waiting_for': '', 'buf': {}}
+            admins[message.from_user.id] = Admin(message.from_user.id, bot, notify)
 
     @bot.callback_query_handler(func=lambda call: call.from_user.id not in admins)
     def non_existent_user(call):
@@ -71,19 +75,17 @@ def start_bot(admin_token, notify, admin_notify):
     def non_existent_user(message):
         bot.send_message(message.from_user.id, "Запустите бота -> /start")
 
-    @bot.message_handler(func=lambda message: not admins[message.from_user.id]['is_authorized'])
+    @bot.message_handler(func=lambda message: not admins[message.from_user.id].is_authorized)
     def auth(message):
         password = message.text
         md5_password = hashlib.md5(password.encode())
 
         if md5_password.hexdigest() == get_pass():
-            admins[message.from_user.id]['is_authorized'] = True
+            admins[message.from_user.id].is_authorized = True
             bot.send_message(message.from_user.id, 'Авторизован')
-
+            
             set_commands(message, bot, 'commands_manager/admin_commands_config.json')
-
-            admins[message.from_user.id]['userwork_viewer'] = AdminUserWorksPageViewer(bot, message.from_user.id, notify)
-            admins[message.from_user.id]['promocodes_viewer'] = PromocodeViewer(bot, message.from_user.id)
+            
             print(message.from_user.username, 'is authorized')
 
             view_userworks(message)
@@ -94,34 +96,34 @@ def start_bot(admin_token, notify, admin_notify):
     @bot.message_handler(commands=['add_currency_by_tg'])
     def add_currency_by_tg(message):
         bot.send_message(message.from_user.id, "Введите ник в телеграме или телефон, если ника нет")
-        admins[message.from_user.id]['waiting_for'] = 'telegram_username'
+        admins[message.from_user.id].waiting_for = 'telegram_username'
 
     @bot.message_handler(commands=['add_currency_by_bot'])
     def add_currency_by_bot(message):
         bot.send_message(message.from_user.id, "Введите ник в боте")
-        admins[message.from_user.id]['waiting_for'] = 'bot_username'
+        admins[message.from_user.id].waiting_for = 'bot_username'
 
     @bot.message_handler(commands=['add_currency_by_name'])
     def add_currency_by_name(message):
         bot.send_message(message.from_user.id, "Введите имя в тг")
-        admins[message.from_user.id]['waiting_for'] = 'telegram_name'
+        admins[message.from_user.id].waiting_for = 'telegram_name'
 
     @bot.message_handler(commands=['add_currency_to_all'])
     def add_currency_to_all(message):
         bot.send_message(message.from_user.id, 'Введите количество монет')
-        admins[message.from_user.id]['waiting_for'] = 'add_coins_amount'
+        admins[message.from_user.id].waiting_for = 'add_coins_amount'
 
     @bot.message_handler(commands=['view_challenges'])
     def view_userworks(message):
         if is_admin_authorized(message.from_user.id):
-            admins[message.from_user.id]['userwork_viewer'].show_works()
+            admins[message.from_user.id].userwork_viewer.show_works()
         else:
             bot.send_message(message.from_user.id, 'Не авторизован')
 
     @bot.message_handler(commands=['view_promocodes'])
     def view_promocodes(message):
         if is_admin_authorized(message.from_user.id):
-            admins[message.from_user.id]['promocodes_viewer'].send_promocodes()
+            admins[message.from_user.id].promocode_viewer.send_promocodes()
         else:
             bot.send_message(message.from_user.id, 'Не авторизован')
 
@@ -130,39 +132,44 @@ def start_bot(admin_token, notify, admin_notify):
         clear_admin_buf(message)
 
         bot.send_message(message.from_user.id, "Кто пригласил? (ник в боте)")
-        admins[message.from_user.id]['waiting_for'] = 'link_friend_first_username'
+        admins[message.from_user.id].waiting_for = 'link_friend_first_username'
 
     @bot.message_handler(commands=['get_user'])
     def get_user(message):
         pass
 
+    @bot.message_handler(commands=['add_challenge'])
+    def add_challenge(message):
+        bot.send_message(message.from_user.id, 'Пришлите превью челленджа')
+        admins[message.from_user.id].waiting_for = 'challenge preview'
+
     # CALL DATA
     @bot.callback_query_handler(func=lambda call: call.data == 'prev_page userworks')
     def prev_challenge_page(message):
-        admins[message.from_user.id]['userwork_viewer'].prev_page()
+        admins[message.from_user.id].userwork_viewer.prev_page()
         bot.answer_callback_query(message.id)
 
     @bot.callback_query_handler(func=lambda call: call.data == 'next_page userworks')
     def next_challenge_page(message):
-        admins[message.from_user.id]['userwork_viewer'].next_page()
+        admins[message.from_user.id].userwork_viewer.next_page()
         bot.answer_callback_query(message.id)
 
     @bot.callback_query_handler(func=lambda call: call.data == 'prev_page promocodes')
     def prev_promocodes_page(message):
-        admins[message.from_user.id]['promocodes_viewer'].prev_page()
+        admins[message.from_user.id].promocode_viewer.prev_page()
         bot.answer_callback_query(message.id)
 
     @bot.callback_query_handler(func=lambda call: call.data == 'next_page promocodes')
     def next_promocodes_page(message):
-        admins[message.from_user.id]['promocodes_viewer'].next_page()
+        admins[message.from_user.id].promocode_viewer.next_page()
         bot.answer_callback_query(message.id)
 
     @bot.callback_query_handler(func=lambda call: call.data == 'approve_button')
     def approve_button(message):
         # add coins to user, send notification, change status to approved
-        admins[message.from_user.id]['userwork_viewer'].approve_button()
+        admins[message.from_user.id].userwork_viewer.approve_button()
 
-        # userwork = admins[message.from_user.id]['userwork_viewer'].current_work
+        # userwork = admins[message.from_user.id].userwork_viewer.current_work
         # notify.userwork_approved(userwork)
 
         # # TODO: add coins to user who this one was invited by
@@ -188,7 +195,7 @@ def start_bot(admin_token, notify, admin_notify):
         #
         # bot.send_message(message.from_user.id, 'Выберите опцию дизапрува:', reply_markup=markup)
 
-        admins[message.from_user.id]['userwork_viewer'].disapprove_button()
+        admins[message.from_user.id].userwork_viewer.disapprove_button()
 
         bot.answer_callback_query(message.id)
 
@@ -196,14 +203,14 @@ def start_bot(admin_token, notify, admin_notify):
     def admin_userworks_page_confirmation(message):
         confirmed = message.data.split()[1] == '1'
         if confirmed:
-            admins[message.from_user.id]['userwork_viewer'].sure_button()
+            admins[message.from_user.id].userwork_viewer.sure_button()
         else:
-            admins[message.from_user.id]['userwork_viewer'].cancel_button()
+            admins[message.from_user.id].userwork_viewer.cancel_button()
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith('disapprove_option'))
     def disapprove_option(call):
         option_id = int(call.data.split()[1])
-        admins[call.from_user.id]['userwork_viewer'].disapprove_userwork(option_id)
+        admins[call.from_user.id].userwork_viewer.disapprove_userwork(option_id)
 
         bot.answer_callback_query(call.id)
 
@@ -211,9 +218,9 @@ def start_bot(admin_token, notify, admin_notify):
     def promocode_confirmation(call):
         data = call.data.split()[1]
         if data == 'approve':
-            admins[call.from_user.id]['promocodes_viewer'].approve()
+            admins[call.from_user.id].promocode_viewer.approve()
         elif data == 'decline':
-            admins[call.from_user.id]['promocodes_viewer'].disapprove()
+            admins[call.from_user.id].promocode_viewer.disapprove()
         # data = call.data.split()
         # if data[1] == 'approve':
         #     user_id = data[2]
@@ -226,7 +233,23 @@ def start_bot(admin_token, notify, admin_notify):
         # bot.delete_message(call.from_user.id, call.message.id)
 
     # WAIT FOR
-    @bot.message_handler(func=lambda message: admins[message.from_user.id]['waiting_for'] == 'telegram_username')
+    @bot.message_handler(func=lambda message: admins[message.from_user.id].waiting_for == 'chainer')
+    def chainer_message_handler(message):
+        admins[message.from_user.id].chainer.message_handler(message)
+
+    @bot.message_handler(func=lambda message: admins[message.from_user.id].waiting_for == 'challenge preview', content_types=['photo', 'video'])
+    def get_challenge_preview(message):
+        print(message.video, message.photo)
+
+        adder = ChallengeAdder(admins[message.from_user.id])
+
+        file_info = bot.get_file(message.photo[-1].file_id if message.photo else message.video.file_id)
+        file = bot.download_file(file_info.file_path)
+
+        adder.pass_media(*([file, None] if message.photo else [None, file]))
+        adder.challenge_survey()
+
+    @bot.message_handler(func=lambda message: admins[message.from_user.id].waiting_for == 'telegram_username')
     def get_telegram_username(message):
         with session_scope() as session:
             user = session.query(User).filter(User.telegram_username == message.text).all()
@@ -237,10 +260,10 @@ def start_bot(admin_token, notify, admin_notify):
                 bot.send_message(message.from_user.id, f"Ник в боте {user.name}\nБаланс {user.coins}\nTG: {user.telegram_username}")
                 bot.send_message(message.from_user.id, "Сколько монет добавить (отрицательное, если убавить)")
 
-                admins[message.from_user.id]['buf']['telegram_id'] = user.telegram_id
-                admins[message.from_user.id]['waiting_for'] = 'new_balance'
+                admins[message.from_user.id].buf['telegram_id'] = user.telegram_id
+                admins[message.from_user.id].waiting_for = 'new_balance'
 
-    @bot.message_handler(func=lambda message: admins[message.from_user.id]['waiting_for'] == 'telegram_name')
+    @bot.message_handler(func=lambda message: admins[message.from_user.id].waiting_for == 'telegram_name')
     def get_telegram_name(message):
         with session_scope() as session:
             user = session.query(User).filter(User.telegram_name == message.text).all()
@@ -252,10 +275,10 @@ def start_bot(admin_token, notify, admin_notify):
                                  f"Ник в боте {user.name}\nБаланс {user.coins}\nTG: {user.telegram_username}")
                 bot.send_message(message.from_user.id, "Сколько монет добавить (отрицательное, если убавить)")
 
-                admins[message.from_user.id]['buf']['telegram_id'] = user.telegram_id
-                admins[message.from_user.id]['waiting_for'] = 'new_balance'
+                admins[message.from_user.id].buf['telegram_id'] = user.telegram_id
+                admins[message.from_user.id].waiting_for = 'new_balance'
 
-    @bot.message_handler(func=lambda message: admins[message.from_user.id]['waiting_for'] == 'bot_username')
+    @bot.message_handler(func=lambda message: admins[message.from_user.id].waiting_for == 'bot_username')
     def get_bot_username(message):
         with session_scope() as session:
             user = session.query(User).filter(User.name == message.text).all()
@@ -266,16 +289,16 @@ def start_bot(admin_token, notify, admin_notify):
                 bot.send_message(message.from_user.id, f"Ник в боте {user.name}\nБаланс {user.coins}\nTG: {user.telegram_username}")
                 bot.send_message(message.from_user.id, "Сколько монет добавить (отрицательное, если убавить)")
 
-                admins[message.from_user.id]['buf']['telegram_id'] = user.telegram_id
-                admins[message.from_user.id]['waiting_for'] = 'new_balance'
+                admins[message.from_user.id].buf['telegram_id'] = user.telegram_id
+                admins[message.from_user.id].waiting_for = 'new_balance'
 
-    @bot.message_handler(func=lambda message: admins[message.from_user.id]['waiting_for'] == 'new_balance')
+    @bot.message_handler(func=lambda message: admins[message.from_user.id].waiting_for == 'new_balance')
     def update_user_balance(message):
         if not message.text.replace('-', '', 1).isdigit():
             bot.send_message(message.from_user.id, 'Некорректный ввод')
             return
 
-        telegram_id = admins[message.from_user.id]['buf']['telegram_id']
+        telegram_id = admins[message.from_user.id].buf['telegram_id']
         amount = int(message.text)
 
         add_coins_to_user(telegram_id, amount)
@@ -287,7 +310,7 @@ def start_bot(admin_token, notify, admin_notify):
 
         clear_admin_buf(message)
 
-    @bot.message_handler(func=lambda message: admins[message.from_user.id]['waiting_for'] == 'link_friend_first_username')
+    @bot.message_handler(func=lambda message: admins[message.from_user.id].waiting_for == 'link_friend_first_username')
     def link_friend_first_username(message):
         with session_scope() as session:
             user = session.query(User).filter(User.name == message.text).all()
@@ -298,11 +321,11 @@ def start_bot(admin_token, notify, admin_notify):
             user = user[0]
             bot.send_message(message.from_user.id, f"Ник в боте {user.name}\nБаланс {user.coins}\nTG: {user.telegram_username}")
 
-            admins[message.from_user.id]['buf']['link_friend_id1'] = user.telegram_id
+            admins[message.from_user.id].buf['link_friend_id1'] = user.telegram_id
         bot.send_message(message.from_user.id, "Кого пригласил? (ник в боте)")
-        admins[message.from_user.id]['waiting_for'] = 'link_friend_second_username'
+        admins[message.from_user.id].waiting_for = 'link_friend_second_username'
 
-    @bot.message_handler(func=lambda message: admins[message.from_user.id]['waiting_for'] == 'link_friend_second_username')
+    @bot.message_handler(func=lambda message: admins[message.from_user.id].waiting_for == 'link_friend_second_username')
     def link_friend_second_username(message):
         with session_scope() as session:
             user = session.query(User).filter(User.name == message.text).all()
@@ -313,28 +336,28 @@ def start_bot(admin_token, notify, admin_notify):
             user = user[0]
             bot.send_message(message.from_user.id, f"Ник в боте {user.name}\nБаланс {user.coins}\nTG: {user.telegram_username}")
 
-            invited_by = admins[message.from_user.id]['buf']['link_friend_id1']
+            invited_by = admins[message.from_user.id].buf['link_friend_id1']
 
             bot.send_message(message.from_user.id, f"{user.telegram_id} теперь привязан к {invited_by}")
             user.invited_by = invited_by
             session.commit()
 
-    @bot.message_handler(func=lambda message: admins[message.from_user.id]['waiting_for'] == 'add_coins_amount')
+    @bot.message_handler(func=lambda message: admins[message.from_user.id].waiting_for == 'add_coins_amount')
     def add_coins_to_all_amount(message):
         if not message.text.replace('-', '', 1).isdigit():
             bot.send_message(message.from_user.id, 'Некорректный ввод')
             return
 
-        admins[message.from_user.id]['buf']['coins_amount'] = int(message.text)
-        admins[message.from_user.id]['waiting_for'] = 'add_coins_condition'
+        admins[message.from_user.id].buf['coins_amount'] = int(message.text)
+        admins[message.from_user.id].waiting_for = 'add_coins_condition'
 
         bot.send_message(message.from_user.id, 'Введите условие добавления монет (">100" больше 100, "<24" меньше 24')
 
-    @bot.message_handler(func=lambda message: admins[message.from_user.id]['waiting_for'] == 'add_coins_condition')
+    @bot.message_handler(func=lambda message: admins[message.from_user.id].waiting_for == 'add_coins_condition')
     def add_coins_to_all_condition(message):
         condition = message.text[0]
         amount = int(message.text[1:])
-        coins_amount = admins[message.from_user.id]['buf']['coins_amount']
+        coins_amount = admins[message.from_user.id].buf['coins_amount']
         with session_scope() as session:
             if condition == '>':
                 users = session.query(User).filter(User.coins > amount).all()

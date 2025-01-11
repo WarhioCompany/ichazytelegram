@@ -145,7 +145,7 @@ class ChallengePageViewer(PageViewer):
             message = messages["not_enough_coins"].format(price=price)
         else:
             return ''
-        return self.escape(message)
+        return message
 
     def get_unused_promocodes(self):
         with session_scope() as session:

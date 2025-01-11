@@ -143,6 +143,11 @@ def start_bot(admin_token, notify, admin_notify):
         bot.send_message(message.from_user.id, 'Пришлите превью челленджа')
         admins[message.from_user.id].waiting_for = 'challenge preview'
 
+    @bot.message_handler(commands=['remove_challenge'])
+    def remove_challenge(message):
+        bot.send_message(message.from_user.id, 'Введите название челленджа (#лень)')
+        admins[message.from_user.id].waiting_for = 'challenge_to_remove'
+
     # CALL DATA
     @bot.callback_query_handler(func=lambda call: call.data == 'prev_page userworks')
     def prev_challenge_page(message):

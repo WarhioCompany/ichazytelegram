@@ -16,6 +16,7 @@ class ChallengeAdder:
         self.video = video
 
     def challenge_survey(self):
+        self.answers = []
         questions = [
             "Сложный челлендж (д)а/(н)ет",
             'Название челленджа',
@@ -84,7 +85,7 @@ class ChallengeAdder:
         with session_scope() as session:
             print(self.answers)
             name = self.answers[1]
-            desc = self.answers[2]
+            desc = '\n' + self.answers[2]
             price = int(self.answers[3])
             date_to = datetime.strptime(self.answers[4], '%d %m %y')
             userwork_type = 'image' if self.answers[5] == 'к' else 'video'

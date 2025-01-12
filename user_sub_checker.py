@@ -18,7 +18,7 @@ def user_status(user_id):
         response = bot_instance.get_chat_member("@ChazyChannel", user_id)
         status = response.status
     except ApiTelegramException as e:
-        if e.result_json['description'] == 'Bad Request: PARTICIPANT_ID_INVALID':
+        if e.result_json['description'] in ['Bad Request: PARTICIPANT_ID_INVALID', 'Bad Request: member list is inaccessible']:
             pass
         else:
             print('ANOTHER TYPE OF ERROR IN USER STATUS: ', e.result_json['description'])

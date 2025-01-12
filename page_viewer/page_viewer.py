@@ -35,7 +35,9 @@ class PageViewer:
                                                     ".":  r"\.",
                                                     "-":  r"\-",
                                                     "(": r"\(",
-                                                    ")": r"\)"}))
+                                                    ")": r"\)",
+                                                    "[": r'\[',
+                                                    "]": r'\]'})).replace(r'\\', '')
         else:
             return caption
 

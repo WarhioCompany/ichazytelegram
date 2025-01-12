@@ -6,7 +6,7 @@
   "user_info": "Твой баланс {coins} лекоинов. И нет, их нельзя перевести на свой счет в банке, как бы ни хотелось.",
 
   "challenge_page_element_coins": "{name} {coins_prize}\uD83D\uDCB0\n{desc}\n\uD83C\uDFC6{winner_count}/{winner_limit}\nТвои успешные попытки: {userworks_approved}/{userwork_limit}",
-  "challenge_page_element_prize": "{name} \uD83C\uDF81\n{desc}\n\uD83C\uDFC6{winner_count}/{winner_limit}\n{promocodes}\nТвои успешные попытки: {userworks_approved}/{userwork_limit}\n[{prize_desc}]({link})\nСтоимость участия: {price}\uD83D\uDCB0",
+  "challenge_page_element_prize": "{name} \uD83C\uDF81\n{desc}\n\uD83C\uDFC6{winner_count}/{winner_limit}\n{promocodes}\nТвои успешные попытки: {userworks_approved}/{userwork_limit}\n\\[{prize_desc}\\]\\({link}\\)\nСтоимость участия: {price}\uD83D\uDCB0",
 
   "challenge_picker": "Выбери",
   "user_participation": "Кидай свою работу, я передам ее модераторам",

@@ -34,8 +34,8 @@ class PageViewer:
                                                     "#":  r"\#",
                                                     ".":  r"\.",
                                                     "-":  r"\-",
-                                                    "(": r"\(",
-                                                    ")": r"\)"}))
+                                                    "(": r"(",
+                                                    ")": r")"}))
         else:
             return caption
 

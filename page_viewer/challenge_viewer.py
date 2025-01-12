@@ -41,10 +41,9 @@ class ChallengePageViewer(PageViewer):
 
     def get_challenge(self):
         with session_scope() as db_sess:
-            challenges_amount = db_sess.query(Challenge).count()
+            challenges = db_sess.query(Challenge).all()
 
-            challenge_id = self.current_page % challenges_amount + 1
-            return db_sess.query(Challenge).filter(Challenge.id == challenge_id).first()
+            return challenges[-(self.current_page % len(challenges)) - 1]
 
     def get_media(self):
         if self.current_challenge.image:

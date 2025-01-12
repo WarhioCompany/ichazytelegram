@@ -145,7 +145,7 @@ def start_bot(admin_token, notify, admin_notify):
 
     @bot.message_handler(commands=['remove_challenge'])
     def remove_challenge(message):
-        bot.send_message(message.from_user.id, 'Введите название челленджа (#лень)')
+        bot.send_message(message.from_user.id, 'ЭТО УДАЛИТ ЧЕЛЛЕНДЖ И ВСЕ РАБОТЫ, СВЯЗАННЫЕ С НИМ. ДЛЯ ОТМЕНЫ ОПЕРАЦИИ ВВЕДИТЕ БРЕД.\n Введите название челленджа (#лень)')
         admins[message.from_user.id].waiting_for = 'challenge_to_remove'
 
     # CALL DATA
@@ -241,6 +241,18 @@ def start_bot(admin_token, notify, admin_notify):
     @bot.message_handler(func=lambda message: admins[message.from_user.id].waiting_for == 'chainer')
     def chainer_message_handler(message):
         admins[message.from_user.id].chainer.message_handler(message)
+
+    @bot.message_handler(func=lambda message: admins[message.from_user.id].waiting_for == 'challenge_to_remove')
+    def remove_challenge(message):
+        challenge_name = message.text
+        with session_scope() as session:
+            challenge = session.query(Challenge).filter(Challenge.name == challenge_name).all()
+            if not challenge:
+                bot.send_message(message.from_user.id, f'Челлендж с именем "{challenge_name}" не найден')
+            else:
+                session.delete(challenge[0])
+                bot.send_message(message.from_user.id, 'Челлендж удален')
+                session.commit()
 
     @bot.message_handler(func=lambda message: admins[message.from_user.id].waiting_for == 'challenge preview', content_types=['photo', 'video'])
     def get_challenge_preview(message):

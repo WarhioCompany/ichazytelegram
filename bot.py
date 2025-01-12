@@ -39,7 +39,8 @@ def start_bot(token, admin_token, db_path):
     admin_bot.start_bot(admin_token, notify, admin_notify)
 
     # FUNCTIONS:
-    def send_message(user_message=None, message_id=None, user_id=None, text=None, markup=None, parse_mode=None, **kwargs):
+    def send_message(user_message=None, message_id=None, user_id=None, text=None, markup=None, parse_mode=None,
+                     **kwargs):
         if not user_id:
             if not user_message:
                 raise Exception('Have to provide either user_id or user_message')
@@ -55,7 +56,9 @@ def start_bot(token, admin_token, db_path):
                                                 "^": r"\^",
                                                 "#": r"\#",
                                                 ".": r"\.",
-                                                "-": r"\-"}))
+                                                "-": r"\-",
+                                                "(": r"\(",
+                                                }))
 
         if text.startswith('~'):
             text = escape(text[1:])
@@ -121,7 +124,8 @@ def start_bot(token, admin_token, db_path):
                 user.telegram_username = message.contact.phone_number
                 session.commit()
             # bot.send_message(message.chat.id, messages['got_phone_number'], reply_markup=types.ReplyKeyboardRemove())
-            send_message(user_id=message.chat.id, message_id='got_phone_number', reply_markup=types.ReplyKeyboardRemove())
+            send_message(user_id=message.chat.id, message_id='got_phone_number',
+                         reply_markup=types.ReplyKeyboardRemove())
             send_challenge_page(message)
         else:
             log.warning_user_activity(message.from_user.id, 'has no phone number nor username')
@@ -320,7 +324,7 @@ def start_bot(token, admin_token, db_path):
 
         if user.invited_by:
             event_handler.add_event(message.from_user.id, EventType.user_was_invited)
-            #admin_bot.sub_checker.add_user_id(message.from_user.id)
+            # admin_bot.sub_checker.add_user_id(message.from_user.id)
 
         # TODO: add week delay and send message about channel
         event_handler.add_event(message.from_user.id, EventType.user_registered)

@@ -3,6 +3,7 @@ from telebot import types
 
 from admin_bot.admin_model import Admin
 from admin_bot.challenge_adder import ChallengeAdder
+from admin_bot.db_manager import DBManager
 from admin_bot.promocode_viewer import PromocodeViewer
 from db_data.db_session import session_scope
 from db_data.models import *
@@ -35,6 +36,8 @@ def start_bot(admin_token, notify, admin_notify):
     bot = telebot.TeleBot(admin_token)
     admin_notify.set_bot(bot)
     admin_notify.start_notifying()
+
+    db_manager = DBManager()
 
     def user_subbed(user_id):
         with session_scope() as session:
@@ -145,8 +148,20 @@ def start_bot(admin_token, notify, admin_notify):
 
     @bot.message_handler(commands=['remove_challenge'])
     def remove_challenge(message):
-        bot.send_message(message.from_user.id, 'ЭТО УДАЛИТ ЧЕЛЛЕНДЖ И ВСЕ РАБОТЫ, СВЯЗАННЫЕ С НИМ. ДЛЯ ОТМЕНЫ ОПЕРАЦИИ ВВЕДИТЕ БРЕД.\n Введите название челленджа (#лень)')
-        admins[message.from_user.id].waiting_for = 'challenge_to_remove'
+        def remove(answer):
+            with session_scope() as session:
+                challenge = session.query(Challenge).filter(Challenge.name == answer[0]).all()
+                if not challenge:
+                    bot.send_message(message.from_user.id, f'Челлендж с именем "{answer[0]}" не найден')
+                else:
+                    db_manager.remove_element(Challenge, challenge[0].id)
+                    bot.send_message(message.from_user.id, 'Челлендж удален')
+        bot.send_message(message.from_user.id, 'ЭТО УДАЛИТ ЧЕЛЛЕНДЖ И ВСЕ РАБОТЫ, СВЯЗАННЫЕ С НИМ. ДЛЯ ОТМЕНЫ ОПЕРАЦИИ ВВЕДИТЕ БРЕД.')
+        admins[message.from_user.id].chainer.chain(['Введите название челленджа (#лень)'], [remove])
+
+    @bot.message_handler(commands=['remove_userwork'])
+    def remove_userwork(message):
+        admins[message.from_user.id].chainer.chain(['Пришлите id работы'], [lambda ans: bot.send_message(message.from_user.id, f'Работа юзера с id {ans[0]} удалена') if db_manager.remove_element(UserWork, int(ans[0])) else bot.send_message(message.from_user.id, 'Работа не найдена')])
 
     # CALL DATA
     @bot.callback_query_handler(func=lambda call: call.data == 'prev_page userworks')

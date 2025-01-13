@@ -4,5 +4,9 @@
   "add_currency_by_tg": "Добавить монеты по нику в тг/телефону",
   "add_currency_by_bot": "Добавить монеты по нику в боте",
   "add_currency_by_name": "Добавить монеты по имени (имя + фамилия)",
+  "add_currency_to_all": "Добавить монеты всем с условием",
+  "add_challenge": "Добавить челлендж",
+  "remove_challenge": "Убрать челлендж",
+  "remove_userwork": "Удалить работу",
   "link_friend": "Привязать друга"
 }

@@ -7,12 +7,14 @@ class Chainer:
         self.questions_queue = []
         self.answers = []
 
-        self.end_action = None
+        self.end_actions = None
 
-    def chain(self, questions, end_action):
+    def chain(self, questions, end_actions):
+        self.answers = []
+
         self.user_obj.waiting_for = 'chainer'
         self.questions_queue = questions
-        self.end_action = end_action
+        self.end_actions = end_actions
         self.send_question()
 
     def send_question(self):
@@ -23,9 +25,11 @@ class Chainer:
 
         if len(self.questions_queue) == 0:
             self.user_obj.waiting_for = ''
-            self.end_action(self.answers)
-            self.answers = []
-            print('end')
+            self.call_actions()
             return
 
         self.send_question()
+
+    def call_actions(self):
+        for action in self.end_actions:
+            action(self.answers)

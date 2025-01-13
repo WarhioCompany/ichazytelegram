@@ -4,9 +4,10 @@ from logger.bot_logger import logger_init
 logger_init()
 
 bot_token = input('Bot token: ')
+backuper.backuper_start()
 if bot_token:
     admin_token = input('Admin token: ')
-    backuper.backuper_start()
+
     start_bot(bot_token, admin_token, 'database/database.sqlite')
 else:
     print(f'{"TEST " * 10}\nWarhioTestBot, WarhioDevDebBot')

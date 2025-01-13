@@ -23,7 +23,7 @@ class PageViewer:
                                                 reply_markup=self.get_markup(button_rows),
                                                 parse_mode=self.parse_mode).message_id
         else:
-            self.media_id = self.bot.send_video(self.user_id, media.media, self.escape(media.caption),
+            self.media_id = self.bot.send_video(self.user_id, media.media, caption=self.escape(media.caption),
                                                 reply_markup=self.get_markup(button_rows),
                                                 parse_mode=self.parse_mode).message_id
 

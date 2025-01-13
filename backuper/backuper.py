@@ -6,7 +6,7 @@ from timer import Timer
 import logging
 from datetime import datetime
 
-logger = logging.getLogger('logger.bot_logger')
+logger = logging.getLogger(__name__)
 timer = None
 
 

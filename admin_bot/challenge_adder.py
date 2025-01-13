@@ -28,7 +28,7 @@ class ChallengeAdder:
             "Лимит победителей",
             "Ссылка на пост"
         ]
-        self.admin.chainer.chain(questions, self.get_first_answers)
+        self.admin.chainer.chain(questions, [self.get_first_answers])
 
     def get_first_answers(self, survey_answers):
         self.answers = survey_answers
@@ -40,7 +40,7 @@ class ChallengeAdder:
             self.easy_challenge_survey()
 
     def easy_challenge_survey(self):
-        self.admin.chainer.chain(['Приз в лекойнах'], self.combine_answers_and_add_challenge)
+        self.admin.chainer.chain(['Приз в лекойнах'], [self.combine_answers_and_add_challenge])
 
     def hard_challenge_survey(self):
         # TODO: prize + promocodes + adding challenge
@@ -53,7 +53,7 @@ class ChallengeAdder:
             self.answers += answers
             self.promocodes_chain()
 
-        self.admin.chainer.chain(['Название приза', 'Описание приза'], get_answers)
+        self.admin.chainer.chain(['Название приза', 'Описание приза'], [get_answers])
 
     def promocodes_chain(self):
         promocodes_left = 0
@@ -64,7 +64,7 @@ class ChallengeAdder:
                 self.answers[-1] += [prev_answers]
 
             if promocodes_left != 0:
-                self.admin.chainer.chain(['Промо', 'контакт в тг (ник чела (@warhio))'], promocode_chain)
+                self.admin.chainer.chain(['Промо', 'контакт в тг (ник чела (@warhio))'], [promocode_chain])
                 promocodes_left -= 1
             else:
                 self.add_challenge()
@@ -75,7 +75,7 @@ class ChallengeAdder:
             self.answers.append([])
             promocode_chain()
 
-        self.admin.chainer.chain(['Сколько всего промокодов'], promocode_chainer)
+        self.admin.chainer.chain(['Сколько всего промокодов'], [promocode_chainer])
 
     def combine_answers_and_add_challenge(self, answers):
         self.answers += answers

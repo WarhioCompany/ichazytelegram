@@ -8,6 +8,7 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 timer = None
+drive = None
 
 
 SERVICE_ACCOUNT = 'backuper/forward-lead-365711-0b30ae0a36de.json' # Please set the file of your credentials of service account.
@@ -15,13 +16,12 @@ UPLOAD_FILE = 'database/database.sqlite' # Please set the filename with the path
 FOLDER_ID = '1_4tVqm1biCgHvvdNJuOH8JLLjEHLWQV4' # Please set the folder ID that you shared your folder with the service account.
 
 
-SCOPES = ['https://www.googleapis.com/auth/drive']
-credentials = ServiceAccountCredentials.from_json_keyfile_name(SERVICE_ACCOUNT, SCOPES)
-drive = build('drive', 'v3', credentials=credentials)
-
-
 def backuper_start():
-    global timer
+    global timer, drive
+
+    SCOPES = ['https://www.googleapis.com/auth/drive']
+    credentials = ServiceAccountCredentials.from_json_keyfile_name(SERVICE_ACCOUNT, SCOPES)
+    drive = build('drive', 'v3', credentials=credentials)
 
     if not timer:
         timer = Timer(__backup_func, 24 * 60 * 60)

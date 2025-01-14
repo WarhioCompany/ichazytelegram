@@ -22,6 +22,8 @@ from backuper import backuper
 import event_handler
 from event_handler import EventType
 
+from exception_handler import ExceptionHandler
+
 users = {}
 
 
@@ -31,7 +33,7 @@ def get_token():
 
 def start_bot(token, admin_token, db_path):
     db_session.global_init(db_path)
-    bot = telebot.TeleBot(token)
+    bot = telebot.TeleBot(token, exception_handler=ExceptionHandler())
 
     notify = Notify(bot)
     admin_notify = AdminNotify()
@@ -405,13 +407,4 @@ def start_bot(token, admin_token, db_path):
         # I'm kinda paranoid that it can cause some problems in the future, so just keep in mind it's here
         user.waiting_for = ''
 
-    while True:
-        try:
-            bot.polling(non_stop=True, logger_level=logging.INFO)
-        except KeyboardInterrupt:
-            print('Interrupted')
-            sys.exit(130)
-        except Exception as e:
-            log.warning(f'Restarting bot. {e}')
-            print(traceback.format_exc())
-    # bot.infinity_polling(logger_level=logging.INFO)
+    bot.infinity_polling(logger_level=logging.INFO)

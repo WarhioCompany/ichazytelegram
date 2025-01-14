@@ -1,3 +1,6 @@
+import signal
+import time
+
 import telebot
 from telebot import types
 
@@ -14,6 +17,8 @@ import threading
 from page_viewer.user_work_viewer import AdminUserWorksPageViewer
 from commands_manager.commands import set_commands
 from user_sub_checker import UserSubChecker
+
+from exception_handler import ExceptionHandler
 
 from chainer import Chainer
 
@@ -33,7 +38,7 @@ sub_checker = None
 
 def start_bot(admin_token, notify, admin_notify):
     global sub_checker
-    bot = telebot.TeleBot(admin_token)
+    bot = telebot.TeleBot(admin_token, exception_handler=ExceptionHandler())
     admin_notify.set_bot(bot)
     admin_notify.start_notifying()
 

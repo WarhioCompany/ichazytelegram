@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import not_
+from telebot.apihelper import ApiTelegramException
 
 import event_handler
 from event_handler import EventType
@@ -11,6 +12,10 @@ from db_data.models import UserWork, UnauthorizedPromocode
 from messages_handler import messages
 from telebot import types
 import user_sub_checker
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 def is_good_time():
@@ -38,7 +43,13 @@ class Notify:
                             caption=messages['userwork_disapproved'] + '\n' + reason)
 
     def balance_update(self, user_id, message, amount):
-        self.bot.send_message(user_id, messages[message].format(amount=amount))
+        if amount == 0:
+            return
+        try:
+            self.bot.send_message(user_id, messages[message].format(amount=amount))
+            logger.info(f'sending balance update to {user_id} ({amount})')
+        except ApiTelegramException as e:
+            logger.info(f"can't send balance update to {user_id} {e.description}")
 
     def subscription_notifier(self):
         registration_events = event_handler.get_active_events(EventType.user_registered)
@@ -48,11 +59,13 @@ class Notify:
                 return
 
             if user_status == 'subscribed':
+                logger.info(f'{event.user_id} subscribed, removing event')
                 event_handler.remove_event(event.user_id, EventType.user_registered)
                 return
 
             if event.time_elapsed() > event_handler.week() and is_good_time():
                 self.bot.send_message(event.user_id, messages['subscribe_to_the_channel'], parse_mode='MarkdownV2')
+                logger.info(f'sending subscription notifier to {event.user_id}')
                 event_handler.remove_event(event.user_id, EventType.user_registered)
 
 

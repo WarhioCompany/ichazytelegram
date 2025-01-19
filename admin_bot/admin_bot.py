@@ -1,3 +1,4 @@
+import logging
 import signal
 import time
 
@@ -34,6 +35,7 @@ def get_pass():
 # id: is_authorized
 admins = {}
 sub_checker = None
+logger = logging.getLogger(__name__)
 
 
 def start_bot(admin_token, notify, admin_notify):
@@ -49,7 +51,7 @@ def start_bot(admin_token, notify, admin_notify):
             invited_by = session.query(User).filter(User.telegram_id == user_id).one().invited_by
         add_coins_to_user(invited_by, 1000)
         notify.balance_update(invited_by, 'referral_coins', 1000)
-        print(f'user {user_id} subbed to the channel, {invited_by} gets 1000')
+        logger.info(f'user {user_id} subbed to the channel, {invited_by} gets 1000')
 
     sub_checker = UserSubChecker(bot, channel_id=-1002275632371, user_subbed_func=user_subbed, seconds_delay=1)#60*60*24*2)
 
@@ -94,7 +96,7 @@ def start_bot(admin_token, notify, admin_notify):
             
             set_commands(message, bot, 'commands_manager/admin_commands_config.json')
             
-            print(message.from_user.username, 'is authorized')
+            logger.info(f'{message.from_user.username} is authorized')
 
             view_userworks(message)
             admin_notify.add_admin(message.from_user.id)
@@ -276,8 +278,6 @@ def start_bot(admin_token, notify, admin_notify):
 
     @bot.message_handler(func=lambda message: admins[message.from_user.id].waiting_for == 'challenge preview', content_types=['photo', 'video'])
     def get_challenge_preview(message):
-        print(message.video, message.photo)
-
         adder = ChallengeAdder(admins[message.from_user.id])
 
         file_info = bot.get_file(message.photo[-1].file_id if message.photo else message.video.file_id)

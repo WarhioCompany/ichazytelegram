@@ -60,7 +60,9 @@ def start_bot(token, admin_token, db_path):
                                                 ".": r"\.",
                                                 "-": r"\-",
                                                 "(": r"\(",
-                                                }))
+                                                ")": r"\)",
+                                                "[": r'\[',
+                                                "]": r'\]'})).replace(r'\\', '')
 
         if text.startswith('~'):
             text = escape(text[1:])

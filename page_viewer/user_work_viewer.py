@@ -155,6 +155,13 @@ class PrivateUserWorksPageViewer(UserWorksViewer):
 
     def delete_userwork(self):
         with session_scope() as session:
+            # coins back
+            price = session.query(UserWork).filter(UserWork.id == self.current_work.id).one().challenge.price
+            if price != 0:
+                user = session.query(User).filter(User.telegram_id == self.current_work.user_id).one()
+                user.coins += price
+                session.commit()
+
             session.query(UserWork).filter(UserWork.id == self.current_work.id).delete()
             session.commit()
 

@@ -55,9 +55,10 @@ class Notify:
         registration_events = event_handler.get_active_events(EventType.user_registered)
         for event in registration_events:
             user_status = user_sub_checker.user_status(event.user_id)
+            print(user_status)
             if not user_status:
                 return
-
+            print(event.user_id)
             if user_status == 'subscribed':
                 logger.info(f'{event.user_id} subscribed, removing event')
                 event_handler.remove_event(event.user_id, EventType.user_registered)

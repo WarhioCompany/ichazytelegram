@@ -72,7 +72,6 @@ def start_bot(admin_token, notify, admin_notify):
 
     @bot.message_handler(commands=['start', 'help'])
     def start_command(message):
-        get_db(message)
         if is_admin_authorized(message.from_user.id):
             view_userworks(message)
         else:

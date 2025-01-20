@@ -8,5 +8,6 @@
   "add_challenge": "Добавить челлендж",
   "remove_challenge": "Убрать челлендж",
   "remove_userwork": "Удалить работу",
-  "link_friend": "Привязать друга"
+  "link_friend": "Привязать друга",
+  "get_db": "Скачать базу данных"
 }

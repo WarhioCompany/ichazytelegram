@@ -7,9 +7,6 @@ from sqlalchemy.orm import Session, scoped_session, sessionmaker
 __factory = None
 SessionLocal = None
 
-def global_init2(db_file):
-    file = open(db_file, 'r')
-    print(file.read())
 
 def global_init(db_file):
     global __factory, SessionLocal

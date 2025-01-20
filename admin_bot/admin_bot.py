@@ -3,6 +3,7 @@ import signal
 import time
 
 import telebot
+from telebot import apihelper
 from telebot import types
 
 from admin_bot.admin_model import Admin
@@ -22,6 +23,7 @@ from user_sub_checker import UserSubChecker
 from exception_handler import ExceptionHandler
 
 from chainer import Chainer
+import db_to_xlsx
 
 def get_token():
     return input('Admin token: ')
@@ -70,6 +72,7 @@ def start_bot(admin_token, notify, admin_notify):
 
     @bot.message_handler(commands=['start', 'help'])
     def start_command(message):
+        get_db(message)
         if is_admin_authorized(message.from_user.id):
             view_userworks(message)
         else:
@@ -147,6 +150,10 @@ def start_bot(admin_token, notify, admin_notify):
     @bot.message_handler(commands=['get_user'])
     def get_user(message):
         pass
+
+    @bot.message_handler(commands=['get_db'])
+    def get_db(message):
+        bot.send_document(message.from_user.id, db_to_xlsx.convert_to_xlsx())
 
     @bot.message_handler(commands=['add_challenge'])
     def add_challenge(message):

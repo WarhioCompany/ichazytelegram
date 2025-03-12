@@ -30,7 +30,6 @@ users = {}
 def get_token():
     return input('Bot token: ')
 
-
 def start_bot(token, admin_token, db_path):
     db_session.global_init(db_path)
     bot = telebot.TeleBot(token, exception_handler=ExceptionHandler())

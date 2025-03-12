@@ -128,8 +128,9 @@ class PrivateUserWorksPageViewer(UserWorksViewer):
 
     def get_userworks(self):
         with session_scope() as session:
+            status = 'approved' if self.is_approved else 'on_moderation'
             works = list(session.query(UserWork).filter(and_(UserWork.user_id == self.user_id,
-                                                             self.is_approved == UserWork.is_approved)))
+                                                             status == UserWork.status)))
 
         if not works:
             return []
@@ -154,6 +155,8 @@ class PrivateUserWorksPageViewer(UserWorksViewer):
                                                           reply_markup=markup).message_id
 
     def delete_userwork(self):
+        # TODO: понять удалять здесь или нет
+
         with session_scope() as session:
             # coins back
             price = session.query(UserWork).filter(UserWork.id == self.current_work.id).one().challenge.price
@@ -197,7 +200,7 @@ class UserWorksPageViewer(UserWorksViewer):
     def get_userwork(self):
         with session_scope() as session:
             works = list(session.query(UserWork).filter(
-                and_(UserWork.is_approved, UserWork.challenge_id == self.challenge_id)))
+                and_(UserWork.status == 'approved', UserWork.challenge_id == self.challenge_id)))
 
         if not works:
             return []
@@ -234,7 +237,7 @@ class AdminUserWorksPageViewer(UserWorksViewer):
 
     def get_userwork(self):
         with session_scope() as session:
-            works = list(session.query(UserWork).filter(not_(UserWork.is_approved)))
+            works = list(session.query(UserWork).filter(UserWork.status == 'on_moderation'))
 
         if not works:
             return []
@@ -321,10 +324,10 @@ class AdminUserWorksPageViewer(UserWorksViewer):
     def cancel_button(self):
         self.delete_are_you_sure_message()
 
-    def remove_userwork(self):
+    def disapprove_userwork_status(self):
         userwork = self.current_work
         with session_scope() as session:
-            session.query(UserWork).filter(UserWork.id == userwork.id).delete()
+            session.query(UserWork).filter(UserWork.id == userwork.id).one().status = 'disapproved'
             session.commit()
 
     def approve_userwork(self):
@@ -351,7 +354,7 @@ class AdminUserWorksPageViewer(UserWorksViewer):
 
             self.give_prize(user, challenge)
             print(f'gave prize to user {user.name} {challenge.coins_prize}')
-            userwork.is_approved = True
+            userwork.status = 'approved'
             session.commit()
         self.notify.userwork_approved(self.current_work)
         self.next_page()
@@ -367,7 +370,7 @@ class AdminUserWorksPageViewer(UserWorksViewer):
                 session.commit()
 
         self.notify.userwork_disapproved(self.current_work, option_id)
-        self.remove_userwork()
+        self.disapprove_userwork_status()
         self.next_page()
 
     def give_prize(self, user, challenge):

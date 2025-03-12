@@ -125,7 +125,7 @@ def start_bot(admin_token, notify, admin_notify):
         bot.send_message(message.from_user.id, 'Введите количество монет')
         admins[message.from_user.id].waiting_for = 'add_coins_amount'
 
-    @bot.message_handler(commands=['view_challenges'])
+    @bot.message_handler(commands=['view_userworks'])
     def view_userworks(message):
         if is_admin_authorized(message.from_user.id):
             admins[message.from_user.id].userwork_viewer.show_works()
@@ -138,6 +138,10 @@ def start_bot(admin_token, notify, admin_notify):
             admins[message.from_user.id].promocode_viewer.send_promocodes()
         else:
             bot.send_message(message.from_user.id, 'Не авторизован')
+
+    @bot.message_handler(commands=['view_challenges'])
+    def view_challenges(message):
+        admins[message.from_user.id].challenge_viewer.show_challenges()
 
     @bot.message_handler(commands=['link_friend'])
     def link_friend(message):
@@ -175,6 +179,21 @@ def start_bot(admin_token, notify, admin_notify):
     @bot.message_handler(commands=['remove_userwork'])
     def remove_userwork(message):
         admins[message.from_user.id].chainer.chain(['Пришлите id работы'], [lambda ans: bot.send_message(message.from_user.id, f'Работа юзера с id {ans[0]} удалена') if db_manager.remove_element(UserWork, int(ans[0])) else bot.send_message(message.from_user.id, 'Работа не найдена')])
+
+    @bot.message_handler(commands=['disapprove_userwork'])
+    def disapprove_userwork(message):
+        def __disapprove_userwork(answer):
+            userwork_id = int(answer[0])
+            with session_scope() as session:
+                u = session.query(UserWork).filter(UserWork.id == userwork_id).all()
+                if len(u) == 0:
+                    bot.send_message(message.from_user.id, 'Работа не найдена')
+                else:
+                    u[0].status = 'disapproved'
+                    bot.send_message(message.from_user.id, 'Работа дизапрувнута')
+                    session.commit()
+
+        admins[message.from_user.id].chainer.chain(['Пришлите id работы'], [__disapprove_userwork])
 
     # CALL DATA
     @bot.callback_query_handler(func=lambda call: call.data == 'prev_page userworks')
@@ -264,6 +283,28 @@ def start_bot(admin_token, notify, admin_notify):
         #         user.used_promocodes.append(promocode)
         #         session.commit()
         # bot.delete_message(call.from_user.id, call.message.id)
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('next_page challenges'))
+    def challenge_next_page(call):
+        admins[call.from_user.id].challenge_viewer.next_page()
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('prev_page challenges'))
+    def challenge_prev_page(call):
+        admins[call.from_user.id].challenge_viewer.prev_page()
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('challenge_edit_start'))
+    def challenge_edit_start(call):
+        admins[call.from_user.id].challenge_viewer.send_edit_challenge_option_picker()
+        bot.answer_callback_query(call.id)
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('challenge_edit_hide'))
+    def challenge_edit_hide(call):
+        admins[call.from_user.id].challenge_viewer.hide_challenge()
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('challenge_edit'))
+    def challenge_edit_option(call):
+        option = call.data.split()[1]
+        admins[call.from_user.id].challenge_viewer.edit_challenge(option)
 
     # WAIT FOR
     @bot.message_handler(func=lambda message: admins[message.from_user.id].waiting_for == 'chainer')

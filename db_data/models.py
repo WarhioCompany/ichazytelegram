@@ -57,6 +57,7 @@ class Challenge(Base):
     id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
     name = sqlalchemy.Column(sqlalchemy.String)
     description = sqlalchemy.Column(sqlalchemy.String)
+#    is_hidden = sqlalchemy.Column(sqlalchemy.Boolean, default=False)
 
     image = sqlalchemy.Column(sqlalchemy.BLOB, nullable=True)
     video = sqlalchemy.Column(sqlalchemy.BLOB, nullable=True)
@@ -96,7 +97,10 @@ class UserWork(Base):
 
     date_uploaded = sqlalchemy.Column(sqlalchemy.Integer)
     type = sqlalchemy.Column(sqlalchemy.String)  # image / video
-    is_approved = sqlalchemy.Column(sqlalchemy.Boolean, default=False)
+    #is_approved = sqlalchemy.Column(sqlalchemy.Boolean, default=False)
+
+    # approved, disapproved, on_moderation
+    status = sqlalchemy.Column(sqlalchemy.String, default='on_moderation')
 
     users_liked = orm.relationship('User', secondary=user_userworks_likes, back_populates='liked_userworks')
 

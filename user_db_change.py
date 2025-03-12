@@ -6,13 +6,18 @@ from sqlalchemy.orm import scoped_session, sessionmaker, DeclarativeBase
 from userwrapper import User
 from db_data import db_session
 import sqlalchemy as sa
-from db_data.models import user_userworks_likes, UserWork, user_to_promocodes, challenge_to_promocode
+#from db_data.models import user_userworks_likes, UserWork, user_to_promocodes, challenge_to_promocode
 db_file = 'db/database.sqlite'
 conn_str = f'sqlite:///{db_file.strip()}?check_same_thread=False'
 print(f"Connecting to db {conn_str}")
 engine = sa.create_engine(conn_str, echo=False)
 __factory = scoped_session(sessionmaker(bind=engine))
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+
+def drop_column(table_name, column_name):
+    __factory.execute(sqlalchemy.text(f'ALTER TABLE {table_name} DROP COLUMN {column_name}'))
+    __factory.commit()
+
 class Base(DeclarativeBase):
     pass
 class Challenge(Base):
@@ -35,13 +40,15 @@ class Challenge(Base):
         return self.id == other.id
 class UserWork(Base):
     __tablename__ = 'userworks'
+    __table_args__ = {'extend_existing': True}
     id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
     data = sqlalchemy.Column(sqlalchemy.BLOB)
     user_id = sqlalchemy.Column(sqlalchemy.Integer)
     challenge_id = sqlalchemy.Column(sqlalchemy.Integer)
-    date_uploaded = sqlalchemy.Column(sqlalchemy.Date)
+    date_uploaded = sqlalchemy.Column(sqlalchemy.Integer)
     type = sqlalchemy.Column(sqlalchemy.String)
     is_approved = sqlalchemy.Column(sqlalchemy.Boolean, default=False)
+
     def __eq__(self, other):
         return self.id == other.id
 class Prize(Base):
@@ -81,9 +88,12 @@ class User(Base):
 Base.metadata.create_all(engine)
 
 userworks = __factory.query(UserWork).all()
+
 print(len(userworks))
+
 UserWork.__table__.drop(engine)
 print(len(userworks))
+
 class UserworkNew(Base):
     __tablename__ = 'userworks'
     __table_args__ = {'extend_existing': True}
@@ -93,50 +103,25 @@ class UserworkNew(Base):
     challenge_id = sqlalchemy.Column(sqlalchemy.Integer)
     date_uploaded = sqlalchemy.Column(sqlalchemy.Integer)
     type = sqlalchemy.Column(sqlalchemy.String)
-    is_approved = sqlalchemy.Column(sqlalchemy.Boolean, default=False)
+    status = sqlalchemy.Column(sqlalchemy.String)
 
     def __eq__(self, other):
         return self.id == other.id
 
 Base.metadata.create_all(engine)
+
 for userwork in userworks:
-    print(datetime.combine(userwork.date_uploaded, datetime.min.time()))
     u = UserworkNew(
         id=userwork.id,
         data=userwork.data,
         user_id=userwork.user_id,
         challenge_id=userwork.challenge_id,
-        date_uploaded=datetime.combine(userwork.date_uploaded, datetime.min.time()).timestamp(),
+        date_uploaded=userwork.date_uploaded,
         type=userwork.type,
-        is_approved=userwork.is_approved
+        status='approved' if userwork.is_approved else 'on_moderation'
     )
     __factory.add(u)
-# users = __factory.query(User).all()
-# print(list(users))
-# User.__table__.drop(engine)
-# print(list(users))
-# class UserNew(Base):
-#     __tablename__ = 'users'
-#     __table_args__ = {'extend_existing': True}
-#     telegram_id = sqlalchemy.Column(sqlalchemy.String, primary_key=True)
-#     telegram_username = sqlalchemy.Column(sqlalchemy.String)
-#     telegram_name = sqlalchemy.Column(sqlalchemy.String)
-#     invited_by = sqlalchemy.Column(sqlalchemy.String)
-#     name = sqlalchemy.Column(sqlalchemy.String)
-#     coins = sqlalchemy.Column(sqlalchemy.Integer, default=0)
-#     def __eq__(self, other):
-#         return self.telegram_id == other.telegram_id
-# Base.metadata.create_all(engine)
-# for user in users:
-#     u = UserNew(
-#         telegram_id=user.telegram_id,
-#         telegram_username=user.telegram_username,
-#         telegram_name='',
-#         invited_by=user.invited_by,
-#         name=user.name,
-#         coins=user.coins,
-#     )
-#     __factory.add(u)
-
 
 __factory.commit()
+
+drop_column('userworks', 'is_approved')

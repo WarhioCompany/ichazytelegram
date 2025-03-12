@@ -14,8 +14,9 @@ from page_viewer.page_viewer import PageViewer
 
 
 class ChallengePageViewer(PageViewer):
-    def __init__(self, bot, user_id):
+    def __init__(self, bot, user_id, get_button_rows_method):
         super().__init__(bot, user_id, 'challenges', parse_mode='MarkdownV2')
+        self.get_button_rows = get_button_rows_method
 
         self.current_challenge = None
 
@@ -100,6 +101,32 @@ class ChallengePageViewer(PageViewer):
 
             return "\n".join(text_promo)
 
+    def get_winner_count(self):
+        with session_scope() as session:
+            return session.query(UserWork).filter(and_(
+                UserWork.status == 'approved',
+                UserWork.challenge_id == self.current_challenge.id
+            )).count()
+
+    def get_userworks_count(self, approved=False):
+        with session_scope() as session:
+            if approved:
+                return session.query(UserWork).filter(and_(
+                    UserWork.status == 'approved',
+                    UserWork.challenge_id == self.current_challenge.id,
+                    UserWork.user_id == self.user_id
+                )).count()
+            else:
+                return session.query(UserWork).filter(and_(
+                    UserWork.challenge_id == self.current_challenge.id,
+                    UserWork.user_id == self.user_id
+                )).count()
+
+
+class ChallengePageViewerUser(ChallengePageViewer):
+    def __init__(self, bot, user_id):
+        super().__init__(bot, user_id, self.get_button_rows)
+
     def get_button_rows(self):
         return [[types.InlineKeyboardButton('Посмотреть работы', callback_data='user_works'),
                  types.InlineKeyboardButton('Участвовать', callback_data=f'participate')]]
@@ -157,27 +184,6 @@ class ChallengePageViewer(PageViewer):
                 return []
             return [promocode for promocode in promocodes if not (promocode.is_expired or promocode in user_promocodes)]
 
-    def get_winner_count(self):
-        with session_scope() as session:
-            return session.query(UserWork).filter(and_(
-                UserWork.is_approved,
-                UserWork.challenge_id == self.current_challenge.id
-            )).count()
-
-    def get_userworks_count(self, approved=False):
-        with session_scope() as session:
-            if approved:
-                return session.query(UserWork).filter(and_(
-                    UserWork.is_approved,
-                    UserWork.challenge_id == self.current_challenge.id,
-                    UserWork.user_id == self.user_id
-                )).count()
-            else:
-                return session.query(UserWork).filter(and_(
-                    UserWork.challenge_id == self.current_challenge.id,
-                    UserWork.user_id == self.user_id
-                )).count()
-
     def enough_coins(self):
         with session_scope() as session:
             user_coins = session.query(User).filter(User.telegram_id == self.user_id).one().coins
@@ -195,3 +201,92 @@ class ChallengePageViewer(PageViewer):
             db_sess.add(work)
             self.bot.send_message(self.user_id, messages["user_send_work"])
             db_sess.commit()
+
+
+class ChallengePageViewerAdmin(ChallengePageViewer):
+    def __init__(self, bot, admin_id, chainer):
+        super().__init__(bot, admin_id, self.get_button_rows)
+        self.chainer = chainer
+
+        common_buttons = [
+            types.InlineKeyboardButton('Название', callback_data='challenge_edit name'),
+            types.InlineKeyboardButton('Описание', callback_data=f'challenge_edit description'),
+            types.InlineKeyboardButton('Цена', callback_data=f'challenge_edit price'),
+            types.InlineKeyboardButton('Лимит работ пользователя',
+                                       callback_data=f'challenge_edit userwork_limit'),
+            types.InlineKeyboardButton('Лимит победителей', callback_data=f'challenge_edit winner_limit'),
+            types.InlineKeyboardButton('Дата окончания-', callback_data=f'challenge_edit date_to'),
+            types.InlineKeyboardButton('Картинка/Видео-', callback_data=f'challenge_edit media')
+        ]
+        cancel_button = [types.InlineKeyboardButton('❌Отмена❌', callback_data=f'challenge_edit cancel')]
+
+        self.buttons_easy = common_buttons + [
+            types.InlineKeyboardButton('Приз лекоинами', callback_data=f'challenge_edit coins_prize')
+        ] + cancel_button
+
+        self.buttons_hard = common_buttons + [
+            types.InlineKeyboardButton('Приз-', callback_data=f'challenge_edit prize'),
+            types.InlineKeyboardButton('Промокоды-', callback_data=f'challenge_edit promocodes'),
+            types.InlineKeyboardButton('Ссылка на пост', callback_data=f'challenge_edit post_link')
+        ] + cancel_button
+
+        self.edit_challenge_option_picker = None
+
+    def get_button_rows(self):
+        return [[types.InlineKeyboardButton('Редактировать', callback_data='challenge_edit_start'),
+                 types.InlineKeyboardButton('Сделать неактивным-', callback_data=f'challenge_edit_hide')]]
+
+    def send_edit_challenge_option_picker(self):
+        buttons = self.buttons_hard if self.current_challenge.is_hard else self.buttons_easy
+        markup = types.InlineKeyboardMarkup()
+        [markup.add(button) for button in buttons]
+        self.edit_challenge_option_picker = self.bot.send_message(self.user_id, 'Что редактируем?', reply_markup=markup).message_id
+
+    def hide_challenge(self):
+        pass
+
+    def edit_challenge(self, option):
+        self.bot.delete_message(self.user_id, self.edit_challenge_option_picker)
+        if option == 'cancel':
+            return
+
+        def __edit_challenge(answer):
+            answer = answer[0]
+            if option in ['name', 'description', 'post_link']: # text fields
+                self.edit_field(option, answer)
+            elif option in ['price', 'winner_limit', 'userwork_limit', 'coins_prize']: # int fields
+                self.edit_field(option, int(answer))
+            self.chainer.clear_chain()
+
+        self.chainer.chain([f'Новое {option}:'], [__edit_challenge])
+
+
+    def edit_field(self, field, value):
+        with session_scope() as session:
+            challenge = session.query(Challenge).filter(Challenge.id == self.current_challenge.id).one()
+            if field == 'name':
+                challenge.name = value
+            elif field == 'description':
+                challenge.description = value
+            elif field == 'price':
+                challenge.price = value
+            elif field == 'userwork_limit':
+                challenge.userworks = value
+            elif field == 'winner_limit':
+                challenge.winner_limit = value
+            elif field == 'date_to':
+                challenge.date_to = value
+            elif field == 'media':
+                if challenge.video:
+                    challenge.video = value
+                else:
+                    challenge.image = value
+            elif field == 'coins_prize':
+                challenge.coins_prize = value
+            elif field == 'post_link':
+                challenge.post_link = value
+            session.commit()
+        self.current_challenge = self.get_challenge()
+        self.update_page(self.get_media(), self.get_button_rows())
+
+# name, desc, image/video, price, date_to, userwork_limit, winner_limit, coins_prize

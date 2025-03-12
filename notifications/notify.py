@@ -96,7 +96,7 @@ class AdminNotify:
 
     def new_info_to_check(self):
         with session_scope() as session:
-            new_userworks = session.query(UserWork).filter(not_(UserWork.is_approved)).all()
+            new_userworks = session.query(UserWork).filter(UserWork.status == 'on_moderation').all()
             new_promocodes = session.query(UnauthorizedPromocode).all()
             if len(new_userworks) == 0 and len(new_promocodes) == 0:
                 return

@@ -37,9 +37,13 @@
   "support": "Поддержка: @mikechazy",
   "get_my_link": "Твоя с пециальная ссылка: {link}",
 
-  "enter_promocode": "Введи примокод ",
+  "enter_promocode": "Введи промокод",
   "promocode_correct": "Бинго! Скоро с тобой свяжутся админы",
   "promocode_incorrect": "У нас нет такого промокода! Вернее, не так. У этого промокода нет нас!",
+  "promocode_already_used": "Ты уже использовал этот промокод!",
+  "promocode_on_moderation": "Не так быстро, ковбой! Наши модераторы еще не успели подтвердить промокод",
+  "promocode_add_coins": "Как ты сумел так быстро его подобрать? Лови монетки! +{amount}\uD83E\uDDA5",
+  "promocode_expired": "Промокод уже не действителен!",
 
   "insufficient_challenge_condition": "~Так, перечитай условия\nПромокоды:\n{promocodes}\n\\[{prize_desc}\\]\\({link}\\)",
   "not_enough_coins": "~Недостаточно лекоинов! Цена челленджа: {price}\uD83D\uDCB0\n\\[Как заработать лекоины\\]\\(https://t.me/ChazyChannel/30\\)",

@@ -1,7 +1,8 @@
 {
   "view_challenges": "Редактор челленджей",
   "view_userworks": "Посмотреть работы",
-  "view_promocodes": "Все промокоды",
+  "moderate_promocodes": "Модерировать промокоды",
+  "view_promocodes": "Промокоды, доступные в боте",
   "add_currency_by_tg": "Добавить монеты по нику в тг/телефону",
   "add_currency_by_bot": "Добавить монеты по нику в боте",
   "add_currency_by_name": "Добавить монеты по имени (имя + фамилия)",
@@ -10,5 +11,6 @@
   "remove_challenge": "Убрать челлендж",
   "remove_userwork": "Удалить работу",
   "link_friend": "Привязать друга",
-  "get_db": "Скачать базу данных"
+  "get_db": "Скачать базу данных",
+  "send_message_to_all": "Массовая рассылка"
 }

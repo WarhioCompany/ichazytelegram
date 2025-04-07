@@ -30,7 +30,6 @@ challenge_to_promocode = sqlalchemy.Table(
     sqlalchemy.Column("promocode_id", sqlalchemy.ForeignKey('promocodes.id'))
 )
 
-
 class User(Base):
     __tablename__ = 'users'
     telegram_id = sqlalchemy.Column(sqlalchemy.String, primary_key=True)
@@ -132,6 +131,8 @@ class Promocode(Base):
     brand = orm.relationship('Brand')
 
     promo = sqlalchemy.Column(sqlalchemy.String)
+    coins = sqlalchemy.Column(sqlalchemy.Integer)
+    need_confirmation = sqlalchemy.Column(sqlalchemy.Boolean)
 
     telegram_contact = sqlalchemy.Column(sqlalchemy.String)
 
@@ -140,10 +141,12 @@ class Promocode(Base):
 
     is_expired = sqlalchemy.Column(sqlalchemy.Boolean, default=False)
 
+    def __eq__(self, other):
+        return self.id == other.id
 
-class UnauthorizedPromocode(Base):
-    __tablename__ = 'unauthorized_promocode'
 
+class PromocodeOnModeration(Base):
+    __tablename__ = 'promocode_status'
     id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
 
     promocode_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('promocodes.id'))
@@ -151,10 +154,6 @@ class UnauthorizedPromocode(Base):
 
     user_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('users.telegram_id'))
     user = orm.relationship('User')
-    username = sqlalchemy.Column(sqlalchemy.String)
-
-    def __eq__(self, other):
-        return self.promocode_id == other.promocode_id
 
 
 class Event(Base):

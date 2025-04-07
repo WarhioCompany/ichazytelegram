@@ -9,7 +9,7 @@ from telebot import types
 from admin_bot.admin_model import Admin
 from admin_bot.challenge_adder import ChallengeAdder
 from admin_bot.db_manager import DBManager
-from admin_bot.promocode_viewer import PromocodeViewer
+from admin_bot.promocode_viewer import ModeratorPromocodeViewer
 from db_data.db_session import session_scope
 from db_data.models import *
 #from user_work_viewer import UserWorksPageViewer
@@ -135,9 +135,20 @@ def start_bot(admin_token, notify, admin_notify):
     @bot.message_handler(commands=['view_promocodes'])
     def view_promocodes(message):
         if is_admin_authorized(message.from_user.id):
-            admins[message.from_user.id].promocode_viewer.send_promocodes()
+            admins[message.from_user.id].promocode_viewer.send_page()
         else:
             bot.send_message(message.from_user.id, 'Не авторизован')
+
+    @bot.message_handler(commands=['moderate_promocodes'])
+    def moderate_promocodes(message):
+        if is_admin_authorized(message.from_user.id):
+            admins[message.from_user.id].moderator_promocode_viewer.send_promocodes()
+        else:
+            bot.send_message(message.from_user.id, 'Не авторизован')
+
+    @bot.message_handler(commands=['view_challenges'])
+    def view_challenges(message):
+        admins[message.from_user.id].challenge_viewer.show_challenges()
 
     @bot.message_handler(commands=['view_challenges'])
     def view_challenges(message):
@@ -195,6 +206,18 @@ def start_bot(admin_token, notify, admin_notify):
 
         admins[message.from_user.id].chainer.chain(['Пришлите id работы'], [__disapprove_userwork])
 
+    @bot.message_handler(commands=['send_message_to_all'])
+    def send_message_to_all(message):
+        def __send_message(data):
+            msg = data[0]
+            with session_scope() as session:
+                users = session.query(User).all()
+                for user in users:
+                    notify.send_message(user.telegram_id, msg)
+            bot.send_message(message.from_user.id, 'Сообщение отправлено')
+        admins[message.from_user.id].chainer.chain(['Введите сообщение, которое увидят все пользователи'], [__send_message])
+
+
     # CALL DATA
     @bot.callback_query_handler(func=lambda call: call.data == 'prev_page userworks')
     def prev_challenge_page(message):
@@ -208,31 +231,17 @@ def start_bot(admin_token, notify, admin_notify):
 
     @bot.callback_query_handler(func=lambda call: call.data == 'prev_page promocodes')
     def prev_promocodes_page(message):
-        admins[message.from_user.id].promocode_viewer.prev_page()
+        admins[message.from_user.id].moderator_promocode_viewer.prev_page()
         bot.answer_callback_query(message.id)
 
     @bot.callback_query_handler(func=lambda call: call.data == 'next_page promocodes')
     def next_promocodes_page(message):
-        admins[message.from_user.id].promocode_viewer.next_page()
+        admins[message.from_user.id].moderator_promocode_viewer.next_page()
         bot.answer_callback_query(message.id)
 
     @bot.callback_query_handler(func=lambda call: call.data == 'approve_button')
     def approve_button(message):
-        # add coins to user, send notification, change status to approved
         admins[message.from_user.id].userwork_viewer.approve_button()
-
-        # userwork = admins[message.from_user.id].userwork_viewer.current_work
-        # notify.userwork_approved(userwork)
-
-        # # TODO: add coins to user who this one was invited by
-        # with session_scope() as session:
-        #     invited_by = session.query(User).filter(User.telegram_id == userwork.user_id).one().invited_by
-        #
-        #     if invited_by:
-        #         amount = 50
-        #         add_coins_to_user(invited_by, amount)
-        #         notify.balance_update(invited_by, "referral_coins", amount)
-
         bot.answer_callback_query(message.id)
 
     @bot.callback_query_handler(func=lambda call: call.data == 'disapprove_button')
@@ -270,9 +279,9 @@ def start_bot(admin_token, notify, admin_notify):
     def promocode_confirmation(call):
         data = call.data.split()[1]
         if data == 'approve':
-            admins[call.from_user.id].promocode_viewer.approve()
+            admins[call.from_user.id].moderator_promocode_viewer.approve()
         elif data == 'decline':
-            admins[call.from_user.id].promocode_viewer.disapprove()
+            admins[call.from_user.id].moderator_promocode_viewer.disapprove()
         # data = call.data.split()
         # if data[1] == 'approve':
         #     user_id = data[2]
@@ -292,6 +301,7 @@ def start_bot(admin_token, notify, admin_notify):
     def challenge_prev_page(call):
         admins[call.from_user.id].challenge_viewer.prev_page()
 
+
     @bot.callback_query_handler(func=lambda call: call.data.startswith('challenge_edit_start'))
     def challenge_edit_start(call):
         admins[call.from_user.id].challenge_viewer.send_edit_challenge_option_picker()
@@ -300,11 +310,32 @@ def start_bot(admin_token, notify, admin_notify):
     @bot.callback_query_handler(func=lambda call: call.data.startswith('challenge_edit_hide'))
     def challenge_edit_hide(call):
         admins[call.from_user.id].challenge_viewer.hide_challenge()
+        bot.answer_callback_query(call.id)
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith('challenge_edit'))
     def challenge_edit_option(call):
         option = call.data.split()[1]
         admins[call.from_user.id].challenge_viewer.edit_challenge(option)
+        bot.answer_callback_query(call.id)
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('promocode_viewer'))
+    def promocode_viewer_call_data(call):
+        data = call.data.split()[1]
+        if data == 'prev_page':
+            admins[call.from_user.id].promocode_viewer.prev_page()
+        elif data == 'next_page':
+            admins[call.from_user.id].promocode_viewer.next_page()
+        elif data == 'change_is_expired':
+            admins[call.from_user.id].promocode_viewer.change_is_expired()
+        elif data == 'add_promocode':
+            admins[call.from_user.id].promocode_viewer.add_promocode()
+        elif data == 'change_need_confirmation':
+            admins[call.from_user.id].promocode_viewer.change_need_confirmation()
+        elif data == 'edit':
+            admins[call.from_user.id].promocode_viewer.send_edit_message()
+        elif data.startswith('edit_'):
+            admins[call.from_user.id].promocode_viewer.edit_field(data)
+        bot.answer_callback_query(call.id)
 
     # WAIT FOR
     @bot.message_handler(func=lambda message: admins[message.from_user.id].waiting_for == 'chainer')

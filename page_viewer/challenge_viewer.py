@@ -88,13 +88,17 @@ class ChallengePageViewer(PageViewer):
     def promocode_text(self):
         with session_scope() as session:
             challenge = session.query(Challenge).filter(Challenge.id == self.current_challenge.id).one()
-            user = session.query(User).filter(User.telegram_id == self.user_id).one()
             promocodes = [promocode for promocode in challenge.promocodes if not promocode.is_expired]
+
+            user = session.query(User).filter(User.telegram_id == self.user_id).all()
+            promocodes_used = []
+            if user:
+                promocodes_used = user[0].used_promocodes
 
             text_promo = []
 
             for promocode in promocodes:
-                if promocode in user.used_promocodes:
+                if promocode in promocodes_used:
                     text_promo.append(f"~{promocode.promo}~")
                 else:
                     text_promo.append(f"{promocode.promo}")

@@ -379,4 +379,5 @@ class AdminUserWorksPageViewer(UserWorksViewer):
             print('CURRENTLY NO ACTUAL PRIZE IS ASSIGNED TO USER!!')
             pass
         else:
+            # TODO: add multiplier
             user.coins += challenge.coins_prize

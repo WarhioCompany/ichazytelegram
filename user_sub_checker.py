@@ -4,6 +4,7 @@ from telebot.apihelper import ApiTelegramException
 from timer import Timer
 import event_handler
 from event_handler import EventType
+from logger import bot_logger
 
 
 bot_instance = None
@@ -26,7 +27,7 @@ def user_status(user_id):
         return status
     else:
         if status != 'member':
-            print(user_id, status)
+            print('What is this status (user_status function): ', user_id, status)
         return 'subscribed'
 
 
@@ -36,7 +37,6 @@ class UserSubChecker:
         bot_instance = bot
 
         self.channel_id = channel_id
-        print(channel_id)
         self.bot = bot
 
         self.user_subbed_func = user_subbed_func
@@ -48,6 +48,7 @@ class UserSubChecker:
         for invited_user in invited_users:
             status = user_status(invited_user.user_id)
             if status == 'subscribed':
+                bot_logger.debug_log(f'invited user {invited_user.user_id} subscribed to the channel')
                 event_handler.add_event(invited_user.user_id, EventType.user_subscribed)
                 event_handler.remove_event(invited_user.user_id, EventType.user_was_invited)
 
@@ -55,8 +56,10 @@ class UserSubChecker:
         for subscribed_user in subscribed_users:
             status = user_status(subscribed_user.user_id)
             if status == 'left':
+                bot_logger.debug_log(f'invited user {invited_user.user_id} left the channel, so inviter will not receive coins')
                 event_handler.remove_event(subscribed_user.user_id, EventType.user_subscribed)
             elif subscribed_user.time_elapsed() > 3 * event_handler.day():
+                bot_logger.debug_log(f'invited user {invited_user.user_id} stayed subbed for three days, rewarding user')
                 self.user_subbed_func(subscribed_user.user_id)
                 event_handler.remove_event(subscribed_user.user_id, EventType.user_subscribed)
 

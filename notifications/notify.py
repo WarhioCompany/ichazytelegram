@@ -8,7 +8,7 @@ from event_handler import EventType
 from timer import Timer
 from db_data import models
 from db_data.db_session import session_scope
-from db_data.models import UserWork, UnauthorizedPromocode
+from db_data.models import UserWork, PromocodeOnModeration, User
 from messages_handler import messages
 from telebot import types
 import user_sub_checker
@@ -27,6 +27,7 @@ def is_good_time():
 class Notify:
     def __init__(self, bot):
         self.bot = bot
+
         self.subscription_notifier_timer = Timer(self.subscription_notifier, event_handler.hour())
 
     def userwork_approved(self, userwork):
@@ -46,7 +47,7 @@ class Notify:
         if amount == 0:
             return
         try:
-            self.bot.send_message(user_id, messages[message].format(amount=amount))
+            self.send_message(user_id, messages[message].format(amount=amount))
             logger.info(f'sending balance update to {user_id} ({amount})')
         except ApiTelegramException as e:
             logger.info(f"can't send balance update to {user_id} {e.description}")
@@ -55,20 +56,26 @@ class Notify:
         registration_events = event_handler.get_active_events(EventType.user_registered)
         for event in registration_events:
             user_status = user_sub_checker.user_status(event.user_id)
-            print(user_status)
             if not user_status:
                 return
-            print(event.user_id)
             if user_status == 'subscribed':
                 logger.info(f'{event.user_id} subscribed, removing event')
                 event_handler.remove_event(event.user_id, EventType.user_registered)
                 return
 
+            logger.info(f'{event.user_id} registered {event.time_elapsed() / 60 / 60 / 24} days ago, but has not subscribed to the channel yet')
+
             if event.time_elapsed() > event_handler.week() and is_good_time():
-                self.bot.send_message(event.user_id, messages['subscribe_to_the_channel'], parse_mode='MarkdownV2')
+                self.send_message(event.user_id, messages['subscribe_to_the_channel'], parse_mode='MarkdownV2')
                 logger.info(f'sending subscription notifier to {event.user_id}')
                 event_handler.remove_event(event.user_id, EventType.user_registered)
 
+    def send_message(self, user_id, message, **kwargs):
+        try:
+            self.bot.send_message(user_id, message, **kwargs)
+            logger.info(f'NOTIFY: {user_id} ({message[:10]}...)')
+        except ApiTelegramException as e:
+            logger.info(f"can't send message to {user_id} ({e.description})")
 
 class AdminNotify:
     def __init__(self):
@@ -85,11 +92,13 @@ class AdminNotify:
         for admin_id in self.admin_ids:
             self.bot.send_message(admin_id, message, reply_markup=reply_markup)
 
-    def user_used_promocode(self, user: types.User, promocode: models.Promocode):
+    def user_used_promocode(self, user_id, promocode: models.Promocode):
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton('Approve', callback_data=f'promo_confirmation approve {user.id} {promocode.id}'),
+        markup.add(types.InlineKeyboardButton('Approve', callback_data=f'promo_confirmation approve {user_id} {promocode.id}'),
                    types.InlineKeyboardButton('Decline', callback_data=f'promo_confirmation decline'))
-        self.send_everyone(f'@{user.username} использовал промокод: {promocode.promo}')
+        with session_scope() as session:
+            user = session.query(User).filter(User.telegram_id == user_id).one()
+            self.send_everyone(f'@{user.username} использовал промокод: {promocode.promo}')
 
     def start_notifying(self):
         Timer(self.new_info_to_check, 5 * event_handler.hour())
@@ -97,7 +106,7 @@ class AdminNotify:
     def new_info_to_check(self):
         with session_scope() as session:
             new_userworks = session.query(UserWork).filter(UserWork.status == 'on_moderation').all()
-            new_promocodes = session.query(UnauthorizedPromocode).all()
+            new_promocodes = session.query(PromocodeOnModeration).all()
             if len(new_userworks) == 0 and len(new_promocodes) == 0:
                 return
             if is_good_time():

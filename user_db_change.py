@@ -40,14 +40,21 @@ class Challenge(Base):
         return self.id == other.id
 class UserWork(Base):
     __tablename__ = 'userworks'
-    __table_args__ = {'extend_existing': True}
+
     id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
     data = sqlalchemy.Column(sqlalchemy.BLOB)
-    user_id = sqlalchemy.Column(sqlalchemy.Integer)
-    challenge_id = sqlalchemy.Column(sqlalchemy.Integer)
+
+    user_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('users.telegram_id'))
+    user = orm.relationship('User')
+    challenge_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('challenges.id'))
+    challenge = orm.relationship('Challenge')
+
     date_uploaded = sqlalchemy.Column(sqlalchemy.Integer)
-    type = sqlalchemy.Column(sqlalchemy.String)
-    is_approved = sqlalchemy.Column(sqlalchemy.Boolean, default=False)
+    type = sqlalchemy.Column(sqlalchemy.String)  # image / video
+    #is_approved = sqlalchemy.Column(sqlalchemy.Boolean, default=False)
+
+    # approved, disapproved, on_moderation
+    status = sqlalchemy.Column(sqlalchemy.String, default='on_moderation')
 
     def __eq__(self, other):
         return self.id == other.id
@@ -87,41 +94,8 @@ class User(Base):
         return self.telegram_id == other.telegram_id
 Base.metadata.create_all(engine)
 
-userworks = __factory.query(UserWork).all()
+Promocode.__table__.drop(engine)
+UnauthorizedPromocode.__table__.drop(engine)
 
-print(len(userworks))
-
-UserWork.__table__.drop(engine)
-print(len(userworks))
-
-class UserworkNew(Base):
-    __tablename__ = 'userworks'
-    __table_args__ = {'extend_existing': True}
-    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
-    data = sqlalchemy.Column(sqlalchemy.BLOB)
-    user_id = sqlalchemy.Column(sqlalchemy.Integer)
-    challenge_id = sqlalchemy.Column(sqlalchemy.Integer)
-    date_uploaded = sqlalchemy.Column(sqlalchemy.Integer)
-    type = sqlalchemy.Column(sqlalchemy.String)
-    status = sqlalchemy.Column(sqlalchemy.String)
-
-    def __eq__(self, other):
-        return self.id == other.id
-
-Base.metadata.create_all(engine)
-
-for userwork in userworks:
-    u = UserworkNew(
-        id=userwork.id,
-        data=userwork.data,
-        user_id=userwork.user_id,
-        challenge_id=userwork.challenge_id,
-        date_uploaded=userwork.date_uploaded,
-        type=userwork.type,
-        status='approved' if userwork.is_approved else 'on_moderation'
-    )
-    __factory.add(u)
-
-__factory.commit()
 
 drop_column('userworks', 'is_approved')

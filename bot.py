@@ -6,9 +6,10 @@ from telebot import types
 from commands_manager.commands import set_commands
 
 from messages_handler import messages
+from promocode_manager import PromocodeManager
 
 from userwrapper import UserData
-from db_data.models import User, Promocode, UnauthorizedPromocode
+from db_data.models import User, Promocode
 
 from db_data import db_session
 from db_data.db_session import session_scope
@@ -36,6 +37,8 @@ def start_bot(token, admin_token, db_path):
 
     notify = Notify(bot)
     admin_notify = AdminNotify()
+
+    promocode_manager = PromocodeManager(notify, admin_notify)
 
     admin_bot.start_bot(admin_token, notify, admin_notify)
 
@@ -327,47 +330,74 @@ def start_bot(token, admin_token, db_path):
 
         if user.invited_by:
             event_handler.add_event(message.from_user.id, EventType.user_was_invited)
-            # admin_bot.sub_checker.add_user_id(message.from_user.id)
 
-        # TODO: add week delay and send message about channel
         event_handler.add_event(message.from_user.id, EventType.user_registered)
-        # users[message.from_user.id] = User(telegram_id=message.from_user.id, name=message.text, bot=bot)
-        # bot.send_message(
-        #     message.from_user.id,
-        #     messages['registration_end'].replace('.', r'\.').replace('-', r'\-').replace('!', r'\!'),
-        #     parse_mode='MarkdownV2'
-        # )
         send_message(message, 'registration_end')
         greeting(message)
 
     @bot.message_handler(func=lambda message: get_user(message).waiting_for == 'promocode')
     def enter_promocode(message):
-        promocode_text = message.text
-        with session_scope() as session:
-            promocode = session.query(Promocode).filter(Promocode.promo == promocode_text).all()
-            if len(promocode) == 0:
-                log.log_user_activity(message.from_user.id, f'promocode incorrect "{promocode_text}"')
-                send_message(message, 'promocode_incorrect')
-                return
-            promocode = promocode[0]
+        promocode_manager.enter_promocode(message.from_user.id, message.text)
 
-            used_promocodes = session.query(User).filter(User.telegram_id == message.from_user.id).one().used_promocodes
-            if promocode in used_promocodes:
-                log.log_user_activity(message.from_user.id, f'promocode already used "{promocode_text}"')
-                send_message(message, 'promocode_already_used')
-            elif promocode:
-                send_message(message, 'promocode_correct', contact=promocode.telegram_contact)
-                log.log_user_activity(message.from_user.id, f'promocode correct "{promocode_text}"')
-                unauthorized_promocode = UnauthorizedPromocode(
-                    user_id=message.from_user.id,
-                    promocode_id=promocode.id,
-                    username=message.from_user.username
-                )
-                if unauthorized_promocode in session.query(UnauthorizedPromocode).all():
-                    return
-                session.add(unauthorized_promocode)
-                session.commit()
-                admin_notify.user_used_promocode(message.from_user, promocode)
+        # promocode_text = message.text
+        # with session_scope() as session:
+        #     promocode = session.query(Promocode).filter(Promocode.promo == promocode_text).all()
+        #     if len(promocode) == 0:
+        #         log.log_user_activity(message.from_user.id, f'promocode incorrect "{promocode_text}"')
+        #         send_message(message, 'promocode_incorrect')
+        #         return
+        #     promocode = promocode[0]
+        #
+        #     used_promocodes = session.query(User).filter(User.telegram_id == message.from_user.id).one().used_promocodes
+        #     if promocode in used_promocodes:
+        #         log.log_user_activity(message.from_user.id, f'promocode has been already used "{promocode_text}"')
+        #         send_message(message, 'promocode_already_used')
+        #     # elif promocode:
+        #     else:
+        #         send_message(message, 'promocode_correct', contact=promocode.telegram_contact)
+        #         log.log_user_activity(message.from_user.id, f'promocode correct "{promocode_text}"')
+        #
+        #         promocode_status = PromocodeStatus(
+        #             user_id=message.from_user.id,
+        #             promocode=promocode,
+        #             status='on_moderation'
+        #         )
+        #
+        #         session.add(promocode_status)
+        #         session.commit()
+        #         admin_notify.user_used_promocode(message.from_user, promocode)
+
+    # def enter_promocode(message):
+
+    # promocode_text = message.text
+    #     with session_scope() as session:
+    #         promocode = session.query(Promocode).filter(Promocode.promo == promocode_text).all()
+    #         if len(promocode) == 0:
+    #             log.log_user_activity(message.from_user.id, f'promocode incorrect "{promocode_text}"')
+    #             send_message(message, 'promocode_incorrect')
+    #             return
+    #         promocode = promocode[0]
+    #
+    #         used_promocodes = session.query(User).filter(User.telegram_id == message.from_user.id).one().used_promocodes
+    #         if promocode in used_promocodes:
+    #             log.log_user_activity(message.from_user.id, f'promocode has been already used "{promocode_text}"')
+    #             send_message(message, 'promocode_already_used')
+    #         # elif promocode:
+    #         else:
+    #             send_message(message, 'promocode_correct', contact=promocode.telegram_contact)
+    #             log.log_user_activity(message.from_user.id, f'promocode correct "{promocode_text}"')
+    #
+    #
+    #             unauthorized_promocode = UnauthorizedPromocode(
+    #                 user_id=message.from_user.id,
+    #                 promocode_id=promocode.id,
+    #                 username=message.from_user.username
+    #             )
+    #             if unauthorized_promocode in session.query(UnauthorizedPromocode).all():
+    #                 return
+    #             session.add(unauthorized_promocode)
+    #             session.commit()
+    #             admin_notify.user_used_promocode(message.from_user, promocode)
 
     # USERWORK SUBMISSION
     @bot.message_handler(content_types=['video'])

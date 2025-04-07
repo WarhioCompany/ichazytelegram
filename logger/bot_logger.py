@@ -32,3 +32,7 @@ def warning_user_activity(user_id, warning_message):
 
 def warning(warning_message):
     logger.warning(warning_message)
+
+
+def debug_log(msg):
+    logger.info(msg)

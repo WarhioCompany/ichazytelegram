@@ -15,7 +15,7 @@ __factory = scoped_session(sessionmaker(bind=engine))
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 def drop_column(table_name, column_name):
-    __factory.execute(sqlalchemy.text(f'ALTER TABLE {table_name} DROP COLUMN {column_name}'))
+    __factory.execute(sqlalchemy.text(f"ALTER TABLE {table_name} DROP COLUMN '{column_name}'"))
     __factory.commit()
 
 class Base(DeclarativeBase):

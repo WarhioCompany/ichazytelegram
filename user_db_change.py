@@ -74,14 +74,6 @@ class Promocode(Base):
     promo = sqlalchemy.Column(sqlalchemy.String)
     telegram_contact = sqlalchemy.Column(sqlalchemy.String)
     is_expired = sqlalchemy.Column(sqlalchemy.Boolean, default=False)
-class UnauthorizedPromocode(Base):
-    __tablename__ = 'unauthorized_promocode'
-    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
-    promocode_id = sqlalchemy.Column(sqlalchemy.Integer)
-    user_id = sqlalchemy.Column(sqlalchemy.Integer)
-    username = sqlalchemy.Column(sqlalchemy.String)
-    def __eq__(self, other):
-        return self.promocode_id == other.promocode_id
 class User(Base):
     __tablename__ = 'users'
     telegram_id = sqlalchemy.Column(sqlalchemy.String, primary_key=True)
@@ -95,7 +87,3 @@ class User(Base):
 Base.metadata.create_all(engine)
 
 Promocode.__table__.drop(engine)
-UnauthorizedPromocode.__table__.drop(engine)
-
-
-drop_column('userworks', 'is_approved')

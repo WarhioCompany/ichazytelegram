@@ -33,6 +33,7 @@ def soft_drop():
     User.__table__.drop(engine)
     Event.__table__.drop(engine)
     PromocodeOnModeration.__table__.drop(engine)
+    UserBoostPromocode.__table__.drop(engine)
 
 
 def hard_drop():

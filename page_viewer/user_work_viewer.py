@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import promocode_tools
 from db_data.db_session import session_scope
 from db_data.models import User, UserWork
 from telebot import types
@@ -352,11 +353,13 @@ class AdminUserWorksPageViewer(UserWorksViewer):
             if challenge.is_hard:
                 hard_userworks_messager.add_hard_userwork(userwork)
 
-            self.give_prize(user, challenge)
-            print(f'gave prize to user {user.name} {challenge.coins_prize}')
+            coefficient = promocode_tools.get_coefficient_and_use(user.telegram_id)
+            self.give_prize(user, challenge, coefficient)
+            print(f'gave prize to user {user.name} {challenge.coins_prize * coefficient} ({coefficient}x)')
             userwork.status = 'approved'
             session.commit()
-        self.notify.userwork_approved(self.current_work)
+        self.notify.userwork_approved(self.current_work, coefficient)
+
         self.next_page()
 
     def disapprove_userwork(self, option_id):
@@ -373,11 +376,11 @@ class AdminUserWorksPageViewer(UserWorksViewer):
         self.disapprove_userwork_status()
         self.next_page()
 
-    def give_prize(self, user, challenge):
+    def give_prize(self, user, challenge, coefficient):
         if challenge.is_hard:
             # prize is real
             print('CURRENTLY NO ACTUAL PRIZE IS ASSIGNED TO USER!!')
             pass
         else:
             # TODO: add multiplier
-            user.coins += challenge.coins_prize
+            user.coins += challenge.coins_prize * coefficient

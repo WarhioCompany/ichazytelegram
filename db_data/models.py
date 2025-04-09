@@ -30,6 +30,7 @@ challenge_to_promocode = sqlalchemy.Table(
     sqlalchemy.Column("promocode_id", sqlalchemy.ForeignKey('promocodes.id'))
 )
 
+
 class User(Base):
     __tablename__ = 'users'
     telegram_id = sqlalchemy.Column(sqlalchemy.String, primary_key=True)
@@ -45,6 +46,7 @@ class User(Base):
     liked_userworks = orm.relationship('UserWork', secondary=user_userworks_likes, back_populates='users_liked')
 
     used_promocodes = orm.relationship('Promocode', secondary=user_to_promocodes, back_populates='users_used')
+    used_boost_promocodes = orm.relationship('UserBoostPromocode', back_populates='user')
 
     def __eq__(self, other):
         return self.telegram_id == other.telegram_id
@@ -150,10 +152,59 @@ class PromocodeOnModeration(Base):
     id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
 
     promocode_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('promocodes.id'))
-    promocode = orm.relationship('Promocode')
 
     user_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('users.telegram_id'))
     user = orm.relationship('User')
+
+    promocode_type = sqlalchemy.Column(sqlalchemy.String) # coins, boost
+
+
+class BoostPromocode(Base):
+    __tablename__ = 'boost_promocode'
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
+
+    promo = sqlalchemy.Column(sqlalchemy.String)
+
+    promocode_type = sqlalchemy.Column(sqlalchemy.String) # date/count
+    coefficient = sqlalchemy.Column(sqlalchemy.Float)
+
+    absolute_value = sqlalchemy.Column(sqlalchemy.Integer) # either date when the promo will expire in seconds or remaining challenges
+
+    need_confirmation = sqlalchemy.Column(sqlalchemy.Boolean)
+    is_expired = sqlalchemy.Column(sqlalchemy.Boolean)
+
+
+class UserBoostPromocode(Base):
+    __tablename__ = 'user_boost_promocode'
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
+
+    boost_promocode_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('boost_promocode.id'))
+    boost_promocode = orm.relationship('BoostPromocode')
+
+    user_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('users.telegram_id'))
+    user = orm.relationship('User')
+
+    value = sqlalchemy.Column(sqlalchemy.Integer) # either date when the promo will expire in seconds or remaining challenges
+
+    confirmed = sqlalchemy.Column(sqlalchemy.Boolean)
+
+    def __init__(self, boost_promocode: BoostPromocode, user: User):
+        super().__init__()
+        self.boost_promocode = boost_promocode
+        self.user = user
+
+        if boost_promocode.promocode_type == 'count':
+            self.value = self.boost_promocode.absolute_value
+        else:
+            self.value = datetime.now().timestamp() + self.boost_promocode.absolute_value
+
+        if not boost_promocode.need_confirmation:
+            self.confirmed = True
+        else:
+            self.confirmed = False
+
+    def __eq__(self, other):
+        return self.id == other.id
 
 
 class Event(Base):

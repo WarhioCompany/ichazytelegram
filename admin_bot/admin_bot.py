@@ -139,6 +139,13 @@ def start_bot(admin_token, notify, admin_notify):
         else:
             bot.send_message(message.from_user.id, 'Не авторизован')
 
+    @bot.message_handler(commands=['view_boost_promocodes'])
+    def view_boost_promocodes(message):
+        if is_admin_authorized(message.from_user.id):
+            admins[message.from_user.id].boost_promocode_viewer.send_page()
+        else:
+            bot.send_message(message.from_user.id, 'Не авторизован')
+
     @bot.message_handler(commands=['moderate_promocodes'])
     def moderate_promocodes(message):
         if is_admin_authorized(message.from_user.id):
@@ -335,6 +342,27 @@ def start_bot(admin_token, notify, admin_notify):
             admins[call.from_user.id].promocode_viewer.send_edit_message()
         elif data.startswith('edit_'):
             admins[call.from_user.id].promocode_viewer.edit_field(data)
+        bot.answer_callback_query(call.id)
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('boost_promocode_viewer'))
+    def promocode_viewer_call_data(call):
+        data = call.data.split()[1]
+        if data == 'prev_page':
+            admins[call.from_user.id].boost_promocode_viewer.prev_page()
+        elif data == 'next_page':
+            admins[call.from_user.id].boost_promocode_viewer.next_page()
+        elif data == 'change_is_expired':
+            admins[call.from_user.id].boost_promocode_viewer.change_is_expired()
+        elif data == 'add_promocode':
+            admins[call.from_user.id].boost_promocode_viewer.add_promocode()
+        elif data == 'change_need_confirmation':
+            admins[call.from_user.id].boost_promocode_viewer.change_need_confirmation()
+        elif data == 'change_type':
+            admins[call.from_user.id].boost_promocode_viewer.change_type()
+        elif data == 'edit':
+            admins[call.from_user.id].boost_promocode_viewer.send_edit_message()
+        elif data.startswith('edit_'):
+            admins[call.from_user.id].boost_promocode_viewer.edit_field(data)
         bot.answer_callback_query(call.id)
 
     # WAIT FOR

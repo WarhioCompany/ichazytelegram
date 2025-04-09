@@ -30,13 +30,14 @@ class Notify:
 
         self.subscription_notifier_timer = Timer(self.subscription_notifier, event_handler.hour())
 
-    def userwork_approved(self, userwork):
+    def userwork_approved(self, userwork, coefficient):
         with session_scope() as session:
             userwork = session.query(UserWork).filter(UserWork.id == userwork.id).one()
             if userwork.challenge.is_hard:
                 self.bot.send_photo(userwork.user_id, photo=userwork.data, caption=messages['userwork_approved_hard'])
             else:
-                self.bot.send_photo(userwork.user_id, photo=userwork.data, caption=messages['userwork_approved'].format(coins=userwork.challenge.coins_prize))
+                coins = int(userwork.challenge.coins_prize * coefficient)
+                self.bot.send_photo(userwork.user_id, photo=userwork.data, caption=messages['userwork_approved'].format(coins=coins))
 
     def userwork_disapproved(self, userwork, disapprove_option):
         reason = messages[f'disapprove_{disapprove_option}']
@@ -98,7 +99,7 @@ class AdminNotify:
                    types.InlineKeyboardButton('Decline', callback_data=f'promo_confirmation decline'))
         with session_scope() as session:
             user = session.query(User).filter(User.telegram_id == user_id).one()
-            self.send_everyone(f'@{user.username} использовал промокод: {promocode.promo}')
+            self.send_everyone(f'@{user.name} использовал промокод: {promocode.promo}')
 
     def start_notifying(self):
         Timer(self.new_info_to_check, 5 * event_handler.hour())

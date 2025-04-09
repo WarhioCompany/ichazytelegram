@@ -26,7 +26,7 @@ def user_status(user_id):
     if status in ['left', '']:
         return status
     else:
-        if status != 'member':
+        if status not in ['member', 'administrator']:
             print('What is this status (user_status function): ', user_id, status)
         return 'subscribed'
 

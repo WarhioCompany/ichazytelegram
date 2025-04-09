@@ -339,66 +339,6 @@ def start_bot(token, admin_token, db_path):
     def enter_promocode(message):
         promocode_manager.enter_promocode(message.from_user.id, message.text)
 
-        # promocode_text = message.text
-        # with session_scope() as session:
-        #     promocode = session.query(Promocode).filter(Promocode.promo == promocode_text).all()
-        #     if len(promocode) == 0:
-        #         log.log_user_activity(message.from_user.id, f'promocode incorrect "{promocode_text}"')
-        #         send_message(message, 'promocode_incorrect')
-        #         return
-        #     promocode = promocode[0]
-        #
-        #     used_promocodes = session.query(User).filter(User.telegram_id == message.from_user.id).one().used_promocodes
-        #     if promocode in used_promocodes:
-        #         log.log_user_activity(message.from_user.id, f'promocode has been already used "{promocode_text}"')
-        #         send_message(message, 'promocode_already_used')
-        #     # elif promocode:
-        #     else:
-        #         send_message(message, 'promocode_correct', contact=promocode.telegram_contact)
-        #         log.log_user_activity(message.from_user.id, f'promocode correct "{promocode_text}"')
-        #
-        #         promocode_status = PromocodeStatus(
-        #             user_id=message.from_user.id,
-        #             promocode=promocode,
-        #             status='on_moderation'
-        #         )
-        #
-        #         session.add(promocode_status)
-        #         session.commit()
-        #         admin_notify.user_used_promocode(message.from_user, promocode)
-
-    # def enter_promocode(message):
-
-    # promocode_text = message.text
-    #     with session_scope() as session:
-    #         promocode = session.query(Promocode).filter(Promocode.promo == promocode_text).all()
-    #         if len(promocode) == 0:
-    #             log.log_user_activity(message.from_user.id, f'promocode incorrect "{promocode_text}"')
-    #             send_message(message, 'promocode_incorrect')
-    #             return
-    #         promocode = promocode[0]
-    #
-    #         used_promocodes = session.query(User).filter(User.telegram_id == message.from_user.id).one().used_promocodes
-    #         if promocode in used_promocodes:
-    #             log.log_user_activity(message.from_user.id, f'promocode has been already used "{promocode_text}"')
-    #             send_message(message, 'promocode_already_used')
-    #         # elif promocode:
-    #         else:
-    #             send_message(message, 'promocode_correct', contact=promocode.telegram_contact)
-    #             log.log_user_activity(message.from_user.id, f'promocode correct "{promocode_text}"')
-    #
-    #
-    #             unauthorized_promocode = UnauthorizedPromocode(
-    #                 user_id=message.from_user.id,
-    #                 promocode_id=promocode.id,
-    #                 username=message.from_user.username
-    #             )
-    #             if unauthorized_promocode in session.query(UnauthorizedPromocode).all():
-    #                 return
-    #             session.add(unauthorized_promocode)
-    #             session.commit()
-    #             admin_notify.user_used_promocode(message.from_user, promocode)
-
     # USERWORK SUBMISSION
     @bot.message_handler(content_types=['video'])
     def upload_work_video(message):

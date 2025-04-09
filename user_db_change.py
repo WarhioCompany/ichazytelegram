@@ -84,6 +84,19 @@ class User(Base):
     coins = sqlalchemy.Column(sqlalchemy.Integer, default=0)
     def __eq__(self, other):
         return self.telegram_id == other.telegram_id
+class PromocodeOnModeration(Base):
+    __tablename__ = 'promocode_status'
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
+
+    promocode_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('promocodes.id'))
+
+    user_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('users.telegram_id'))
+    user = orm.relationship('User')
+
+    promocode_type = sqlalchemy.Column(sqlalchemy.String) # coins, boost
+
+
 Base.metadata.create_all(engine)
 
 Promocode.__table__.drop(engine)
+PromocodeOnModeration.__table__.drop(engine)

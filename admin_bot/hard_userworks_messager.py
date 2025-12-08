@@ -12,7 +12,7 @@ def add_hard_userwork(userwork: UserWork):
         'challenge_name': userwork.challenge.name,
         'userwork_type': userwork.type,
         'userwork_data': userwork.data,
-        'prize_name': userwork.challenge.prize.name
+        'prize_name': userwork.challenge.prizes[0].name
     })
 
 

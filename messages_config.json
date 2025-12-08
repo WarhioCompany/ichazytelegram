@@ -1,12 +1,12 @@
 {
-  "new_user": "Привет! Я тебя не знаю, давайка-ка это дело поправлять!",
-  "enter_nickname": "Придумай себе ник и напиши его, а я запомню.",
+  "new_user": "Вы кто такие? Я вас не звал, идите... Не, не то, забыли. Давайте еще раз попробую!",
+  "enter_nickname": "Познакомимся! Придумай себе ник и напиши его, а я запомню.",
   "registration_end": "~Ну, король экономии или императрица выгоды, кем бы ты ни был – моя чумовая поздравлямба! Теперь ты с нами, а это значит: \n- ты сможешь делиться приколдесным контентом;\n- удачно инвестировать в промокодики;\n- самое главное – ~«выигрывать» призы в мутных розыгрышах~ получать подарки за выполнение челленджей! Наш мега-супер-дупер \\[канал\\]\\(https://t.me/ChazyChannel\\)",
   "welcome_username": "О, давно не виделись, {username}, приветики-пистолетики!",
-  "user_info": "Твой баланс {coins} лекоинов. И нет, их нельзя перевести на свой счет в банке, как бы ни хотелось.",
+  "user_info": "Твой баланс {coins} лекоинов, ты уже пригласил {referral_count} друзей. Актуальную информацию о том, насколько ты хорош(а), всегда можно посмотреть по кнопке “Мой профиль”.",
 
   "challenge_page_element_coins": "{name} {coins_prize}\uD83D\uDCB0\n{desc}\n\uD83C\uDFC6{winner_count}/{winner_limit}\nТвои успешные попытки: {userworks_approved}/{userwork_limit}",
-  "challenge_page_element_prize": "{name} \uD83C\uDF81\n{desc}\n\uD83C\uDFC6{winner_count}/{winner_limit}\n{promocodes}\nТвои успешные попытки: {userworks_approved}/{userwork_limit}\n\\[{prize_desc}\\]\\({link}\\)\nСтоимость участия: {price}\uD83D\uDCB0",
+  "challenge_page_element_prize": "{name} \uD83C\uDF81\n{desc}\n\uD83C\uDFC6{winner_count}/{winner_limit}\n{promocodes}\nТвои успешные попытки: {userworks_approved}/{userwork_limit}\nПриз за успешный успех: \\[{prize_name}\\]\\({link}\\)\nСтоимость участия: {price}\uD83D\uDCB0",
 
   "challenge_picker": "Выбери",
   "user_participation": "Кидай свою работу, я передам ее модераторам",
@@ -33,18 +33,21 @@
 
   "balance": "Твой баланс лекоинов: {coins}\uD83D\uDCB0",
   "partnership": "Если ты блогер и хочешь поработать вместе, пиши: @mikechazy",
-  "shop": "Купить стикерпак можно тут: @mikechazy",
+  "shop": "Чтобы купить наш крутой стикерпак, пиши “Хочу стикерпак” сюда: @mikechazy",
   "support": "Поддержка: @mikechazy",
-  "get_my_link": "Твоя с пециальная ссылка: {link}",
+  "get_my_link": " Вот твоя личная, уникальная ссылка для приглашения друзей. Приглашенный друг будет засчитан при условии подписки на канал и регистрации в боте. Лекоины ты получишь через 3 дня после того, как друг подпишется (и НЕ отпишется) на канал. Где-то в душе мы надеемся, что ты из цыганского табора :) {link}",
 
   "enter_promocode": "Введи промокод",
-  "promocode_correct": "Бинго! Скоро с тобой свяжутся админы",
-  "boost_promocode_correct": "Бинго! Наслаждайся своей мощью в {coefficient}x",
+  "promocode_sending_to_moderation": "Бинго! Скоро с тобой свяжутся админы",
+  "boost_promocode_correct": "Успей воспользоваться своим преимуществом в {coefficient} лекоинов!",
   "promocode_incorrect": "У нас нет такого промокода! Вернее, не так. У этого промокода нет нас!",
-  "promocode_already_used": "Ты уже использовал этот промокод!",
+  "promocode_already_used": "Ты уже использовал этот промокод, хитрован!",
   "promocode_on_moderation": "Не так быстро, ковбой! Наши модераторы еще не успели подтвердить промокод",
-  "promocode_add_coins": "Как ты сумел так быстро его подобрать? Лови монетки! +{amount}\uD83E\uDDA5",
-  "promocode_expired": "Промокод уже не действителен!",
+  "promocode_add_coins": "Лови заслуженные лекоины! (+{amount}\uD83E\uDDA5)",
+  "promocode_without_coins": "Добрый модер подтвердил промик! Еще один ключик к выполнению супер-челледжа",
+  "promocode_expired": "Промокод уже не действует, в следующий раз поторопись!",
+  "promocode_not_subscribed": "Ты не подписан на {channel_id} блогера, подпишись и попробуй еще раз!",
+  "promocode_send_proof": "Присылай скрин/фото чека или любого иного подтверждения покупки",
 
   "insufficient_challenge_condition": "~Так, перечитай условия\nПромокоды:\n{promocodes}\n\\[{prize_desc}\\]\\({link}\\)",
   "not_enough_coins": "~Недостаточно лекоинов! Цена челленджа: {price}\uD83D\uDCB0\n\\[Как заработать лекоины\\]\\(https://t.me/ChazyChannel/30\\)",
@@ -52,10 +55,27 @@
   "send_phone_number": "Дружок, похоже ты безымянный! Дай нам свой номер телефона, чтобы ты мог получать награды с супер-челленджей. А потом можешь поставить себе ник в настройках",
   "got_phone_number": "Обещаю не звонить! (но новый сериальчик не грех обсудить)",
 
+  "referral_count": "Счет отличных людей: {count}!",
+
   "added_coins": "А вот и лучшая новость дня: отсыпали тебе {amount} лекоинов\uD83E\uDDA5",
   "referral_coins": "У тебя хорошие друзья, либо ты очень хорошо уговариваешь. Лови {amount}\uD83E\uDDA5!",
   "discard_coins": "Ты плохо себя вел! Злые админы забрали у тебя {amount}\uD83D\uDCB0",
 
   "start_error_message": "Бот не запущен! Чтобы начать, кликай -> /start",
-  "subscribe_to_the_channel": "Если не хочешь остаться без подарков, скорее залетай [сюда](https://t.me/ChazyChannel)"
+  "subscribe_to_the_channel": "Если не хочешь остаться без подарков, скорее залетай [сюда](https://t.me/ChazyChannel)",
+
+  "main_menu": "Меню: ",
+  "profile_menu_old": "\uD83C\uDF1F *{name}*\n\n\uD83D\uDCB0 Твой баланс: {coins} {lecoin_word}\n\uD83D\uDC65 Приглашенные друзья: {referral_count}",
+  "profile_menu": "Твой баланс: {coins} лекоинов\nПриглашенных друзей: {referral_count}",
+  "gifts_menu": "Актуальные подарки и ништячки",
+  "feedback_menu": "С такими, как мы, лучше связываться, понятно?",
+
+  "future_prize_line": "{num}\\) {name} \\({type_explanation}\\)",
+  "actual_prize_line": "{num}) {name} - {desc} {challenge}",
+
+  "no_actual_prizes": "Очень скоро!",
+  "no_future_prizes": "Админы что-то скрывают, будущих призов не найдено",
+
+  "actual_prize_page": "{name}\t{challenge}\n{desc}",
+  "future_prize_page": "{name}\n{type_explanation}\n{desc}"
 }

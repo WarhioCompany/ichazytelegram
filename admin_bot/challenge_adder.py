@@ -4,7 +4,7 @@ from db_data.db_session import session_scope
 from db_data.models import Challenge, Prize, Promocode, Brand
 
 
-class ChallengeAdder:
+class ChallengeAdder: #outdated
     def __init__(self, admin):
         self.admin = admin
         self.answers = []

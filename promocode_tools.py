@@ -16,7 +16,7 @@ def use_promocode(promocode_id, user_id, notify):
             user.coins += promocode.coins
             notify.balance_update(user_id, "promocode_add_coins", promocode.coins)
         else:
-            notify.send_message(user_id, "Похоже, что этот промокод ничего не делает...")
+            notify.send_message(user_id, messages["promocode_without_coins"])
         session.commit()
 
 

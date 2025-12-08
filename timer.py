@@ -1,7 +1,8 @@
+import logging
 import threading
 import time
 
-
+logger = logging.getLogger(__name__)
 class Timer:
     def __init__(self, func, seconds_delay, *args):
         self._func = func
@@ -20,5 +21,6 @@ class Timer:
 
     def _launch(self):
         while not self._stop:
+            logger.info(f'TIMER: executing {self._func.__name__} each {self._seconds_delay / 3600} hours')
             self._func(*self._args)
             time.sleep(self._seconds_delay)

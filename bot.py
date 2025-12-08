@@ -1,15 +1,17 @@
 import logging
-import sys
 
 import telebot
 from telebot import types
+
+import user_sub_checker
 from commands_manager.commands import set_commands
 
 from messages_handler import messages
 from promocode_manager import PromocodeManager
+from tools.referrals import count_referrals_of_user
 
 from userwrapper import UserData
-from db_data.models import User, Promocode
+from db_data.models import User
 
 from db_data import db_session
 from db_data.db_session import session_scope
@@ -17,13 +19,12 @@ from db_data.db_session import session_scope
 from notifications.notify import Notify, AdminNotify
 import admin_bot.admin_bot as admin_bot
 
-import traceback
 from logger import bot_logger as log
-from backuper import backuper
 import event_handler
 from event_handler import EventType
 
 from exception_handler import ExceptionHandler
+from tools import media_downloader, text_escaper, referrals
 
 users = {}
 
@@ -37,7 +38,6 @@ def start_bot(token, admin_token, db_path):
 
     notify = Notify(bot)
     admin_notify = AdminNotify()
-
     promocode_manager = PromocodeManager(notify, admin_notify)
 
     admin_bot.start_bot(admin_token, notify, admin_notify)
@@ -55,19 +55,8 @@ def start_bot(token, admin_token, db_path):
             text = messages[message_id]
         text = text.format(**kwargs)
 
-        def escape(msg):
-            return msg.translate(str.maketrans({"!": r"\!",
-                                                "^": r"\^",
-                                                "#": r"\#",
-                                                ".": r"\.",
-                                                "-": r"\-",
-                                                "(": r"\(",
-                                                ")": r"\)",
-                                                "[": r'\[',
-                                                "]": r'\]'})).replace(r'\\', '')
-
         if text.startswith('~'):
-            text = escape(text[1:])
+            text = text_escaper.escape(text[1:])
             parse_mode = 'MarkdownV2'
 
         bot.send_message(
@@ -82,8 +71,8 @@ def start_bot(token, admin_token, db_path):
         if message.from_user.id in users:
             return users[message.from_user.id]
         else:
-            # it's for waiting_for checkers
-            return UserData(bot, '')
+            # creating blank user, because waiting_for checkers need it
+            return UserData(bot, '', promocode_manager)
 
     def send_challenge_page(message):
         viewer = get_user(message).challenge_viewer
@@ -95,22 +84,27 @@ def start_bot(token, admin_token, db_path):
     def greeting(message):
         with session_scope() as session:
             user = session.query(User).filter(User.telegram_id == message.from_user.id).first()
-            send_message(message, "user_info", coins=user.coins)
+            send_message(message, "user_info", coins=user.coins, referral_count=count_referrals_of_user(message.from_user.id))
         send_challenge_page(message)
 
     def check_is_username_the_same(message):
         with session_scope() as session:
             telegram_id = message.from_user.id
             user = session.query(User).filter(User.telegram_id == telegram_id).one()
+
+            if message.from_user.username and message.from_user.username == user.telegram_username \
+                and message.from_user.full_name == user.telegram_name:
+                return True
+
+            user.telegram_name = message.from_user.full_name
             if message.from_user.username:
-                if message.from_user.username != user.telegram_username:
-                    user.telegram_username = message.from_user.username
+                user.telegram_username = message.from_user.username
             else:
                 # doesn't have a username, will be using user's phone
                 if user.telegram_username == '':
                     get_phone_number_message(message)
                     return False
-            user.telegram_name = message.from_user.full_name
+
             session.commit()
         return True
 
@@ -118,7 +112,6 @@ def start_bot(token, admin_token, db_path):
         keyboard = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True, one_time_keyboard=True)
         button_phone = types.KeyboardButton(text='Поделиться номером', request_contact=True)
         keyboard.add(button_phone)  # Add this button
-        # bot.send_message(message.chat.id, messages['send_phone_number'], reply_markup=keyboard)
         send_message(user_id=message.chat.id, message_id='send_phone_number', markup=keyboard)
 
     @bot.message_handler(content_types=['contact'])
@@ -146,7 +139,7 @@ def start_bot(token, admin_token, db_path):
 
         log.log_message_sent(message)
 
-        user = UserData(bot, message.from_user.id, invited_by=invited_by)
+        user = UserData(bot, message.from_user.id, promocode_manager, invited_by=invited_by)
         users[message.from_user.id] = user
 
         if user.user():
@@ -174,6 +167,10 @@ def start_bot(token, admin_token, db_path):
         log.log_message_sent(message)
         send_challenge_page(message)
 
+    @bot.message_handler(commands=['menu'])
+    def view_menu(message):
+        get_user(message).menu.send()
+
     @bot.message_handler(commands=['my_works'])
     def my_works(message):
         log.log_message_sent(message)
@@ -197,8 +194,7 @@ def start_bot(token, admin_token, db_path):
     @bot.message_handler(commands=['promocode'])
     def promocode(message):
         log.log_message_sent(message)
-        get_user(message).waiting_for = 'promocode'
-        send_message(message, "enter_promocode")
+        get_user(message).promocode_command()
 
     @bot.message_handler(commands=['support'])
     def support(message):
@@ -208,7 +204,12 @@ def start_bot(token, admin_token, db_path):
     @bot.message_handler(commands=['get_my_link'])
     def get_my_link(message):
         log.log_message_sent(message)
-        send_message(message, "get_my_link", link=f'https://t.me/chazychannelbot?start={message.from_user.id}')
+        get_user(message).send_referral_link()
+
+    @bot.message_handler(commands=['referrals_count'])
+    def referrals_count(message):
+        send_message(message, "referral_count", count=referrals.count_referrals_of_user(message.from_user.id))
+
 
     # CALLBACKS:
     @bot.callback_query_handler(func=lambda call: call.data == 'participate')
@@ -218,23 +219,11 @@ def start_bot(token, admin_token, db_path):
 
         error_message = user.challenge_viewer.can_submit()
         if error_message:
-            # bot.send_message(call.from_user.id, error_message, parse_mode='MarkdownV2', disable_web_page_preview=True)
             send_message(call, text=error_message)
         else:
             user.waiting_for = 'work'
             send_message(call, "user_participation")
         bot.answer_callback_query(call.id)
-
-    # @bot.callback_query_handler(func=lambda call: call.data.startswith('challenge_card'))
-    # def picking_challenge(call):
-    #     # call: 'challenge_card {id}'
-    #     user = get_user(call)
-    #     challenge_id = int(call.data.split()[1])
-    #
-    #     bot.answer_callback_query(call.id)
-    #     user.challenge_viewer.send_challenge(challenge_id)
-    #     if user.userworks_viewer.does_exist():
-    #         user.userworks_viewer.show_works(user.challenge_viewer.challenge_card.current_challenge.id)
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith('prev_page'))
     def prev_page(message):
@@ -252,6 +241,8 @@ def start_bot(token, admin_token, db_path):
             user.userworks_viewer.prev_page()
         elif identifier == 'private_userworks':
             user.private_userworks_viewer.prev_page()
+        elif identifier == 'actual_prize':
+            user.prize_viewer.prev_page()
         bot.answer_callback_query(message.id)
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith('next_page'))
@@ -269,7 +260,17 @@ def start_bot(token, admin_token, db_path):
             user.userworks_viewer.next_page()
         elif identifier == 'private_userworks':
             user.private_userworks_viewer.next_page()
+        elif identifier == 'actual_prize':
+            user.actual_prize_viewer.next_page()
+        elif identifier == 'future_prize':
+            user.future_prize_viewer.next_page()
         bot.answer_callback_query(message.id)
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('view_prize'))
+    def view_prize(call):
+        prize_id = int(call.data.split()[1])
+        get_user(call).actual_prize_viewer.view_prize(prize_id)
+        bot.answer_callback_query(call.id)
 
     @bot.callback_query_handler(func=lambda call: call.data == 'user_works')
     def show_user_works(message):
@@ -278,6 +279,11 @@ def start_bot(token, admin_token, db_path):
 
         user.userworks_viewer.show_works(user.challenge_viewer.current_challenge.id)
         bot.answer_callback_query(message.id)
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('menu'))
+    def menu_handler(call):
+        get_user(call).menu.handle(call)
+        bot.answer_callback_query(call.id)
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith('userwork_like'))
     def like_userwork(message):
@@ -320,12 +326,18 @@ def start_bot(token, admin_token, db_path):
         bot.answer_callback_query(message.id)
 
     # User manipulation:
+    @bot.message_handler(func=lambda message: get_user(message).waiting_for == 'chainer',
+                         content_types=['photo', 'video', 'text'])
+    def chainer_message_handler(message):
+        users[message.from_user.id].chainer.message_handler(message)
+
     @bot.message_handler(func=lambda message: get_user(message).waiting_for == 'name')
     def new_user(message):
         log.log_user_activity(message.from_user.id, f'registration end, bot name: {message.text}')
 
         user = users[message.from_user.id]
-        user = UserData(bot, message.from_user.id, name=message.text, invited_by=user.invited_by)
+        user = UserData(bot, message.from_user.id, promocode_manager, name=message.text, invited_by=user.invited_by)
+        user.promocode_manager = promocode_manager
         users[message.from_user.id] = user
 
         if user.invited_by:
@@ -334,10 +346,6 @@ def start_bot(token, admin_token, db_path):
         event_handler.add_event(message.from_user.id, EventType.user_registered)
         send_message(message, 'registration_end')
         greeting(message)
-
-    @bot.message_handler(func=lambda message: get_user(message).waiting_for == 'promocode')
-    def enter_promocode(message):
-        promocode_manager.enter_promocode(message.from_user.id, message.text)
 
     # USERWORK SUBMISSION
     @bot.message_handler(content_types=['video'])
@@ -351,8 +359,7 @@ def start_bot(token, admin_token, db_path):
         challenge_name = user.challenge_viewer.current_challenge.name
         log.log_user_activity(message.from_user.id, f'submitted VIDEO userwork for {challenge_name}')
 
-        file_info = bot.get_file(message.video.file_id)
-        downloaded_file = bot.download_file(file_info.file_path)
+        downloaded_file = media_downloader.download_video(bot, message)
 
         user.challenge_viewer.submit_userwork(downloaded_file, 'video')
         # I'm kinda paranoid that it can cause some problems in the future, so just keep in mind it's here
@@ -370,9 +377,7 @@ def start_bot(token, admin_token, db_path):
         challenge_name = user.challenge_viewer.current_challenge.name
         log.log_user_activity(message.from_user.id, f'submitted IMAGE userwork for {challenge_name}')
 
-        image_size = 2  # 0 -> 2
-        file_info = bot.get_file(message.photo[min(len(message.photo) - 1, image_size)].file_id)
-        downloaded_file = bot.download_file(file_info.file_path)
+        downloaded_file = media_downloader.download_photo(bot, message)
 
         user.challenge_viewer.submit_userwork(downloaded_file, 'image')
         # I'm kinda paranoid that it can cause some problems in the future, so just keep in mind it's here

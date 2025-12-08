@@ -14,6 +14,7 @@ from telebot import types
 import user_sub_checker
 import logging
 
+from user_sub_checker import MAIN_CHANNEL_ID
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,6 @@ def is_good_time():
 class Notify:
     def __init__(self, bot):
         self.bot = bot
-
         self.subscription_notifier_timer = Timer(self.subscription_notifier, event_handler.hour())
 
     def userwork_approved(self, userwork, coefficient):
@@ -56,10 +56,7 @@ class Notify:
     def subscription_notifier(self):
         registration_events = event_handler.get_active_events(EventType.user_registered)
         for event in registration_events:
-            user_status = user_sub_checker.user_status(event.user_id)
-            if not user_status:
-                return
-            if user_status == 'subscribed':
+            if user_sub_checker.is_subscribed(event.user_id):
                 logger.info(f'{event.user_id} subscribed, removing event')
                 event_handler.remove_event(event.user_id, EventType.user_registered)
                 return
@@ -67,8 +64,8 @@ class Notify:
             logger.info(f'{event.user_id} registered {event.time_elapsed() / 60 / 60 / 24} days ago, but has not subscribed to the channel yet')
 
             if event.time_elapsed() > event_handler.week() and is_good_time():
-                self.send_message(event.user_id, messages['subscribe_to_the_channel'], parse_mode='MarkdownV2')
                 logger.info(f'sending subscription notifier to {event.user_id}')
+                self.send_message(event.user_id, messages['subscribe_to_the_channel'], parse_mode='MarkdownV2')
                 event_handler.remove_event(event.user_id, EventType.user_registered)
 
     def send_message(self, user_id, message, **kwargs):
@@ -94,6 +91,8 @@ class AdminNotify:
             self.bot.send_message(admin_id, message, reply_markup=reply_markup)
 
     def user_used_promocode(self, user_id, promocode: models.Promocode):
+        # here are buttons, but they are not applied fsr
+
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton('Approve', callback_data=f'promo_confirmation approve {user_id} {promocode.id}'),
                    types.InlineKeyboardButton('Decline', callback_data=f'promo_confirmation decline'))
@@ -114,3 +113,7 @@ class AdminNotify:
                 self.send_everyone(f'Новых работ: {len(new_userworks)}\nНовых промокодов: {len(new_promocodes)}')
             else:
                 print(datetime.now().time(), 'is too late/early (9:30 to 21:00)')
+
+    def prize_barrier_suffice(self, prize):
+        if is_good_time():
+            self.send_everyone(f'Барьер приза "{prize.name}" ({prize.barrier_value} {prize.barrier_type}) преодолен!')

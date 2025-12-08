@@ -34,7 +34,8 @@ def soft_drop():
     Event.__table__.drop(engine)
     PromocodeOnModeration.__table__.drop(engine)
     UserBoostPromocode.__table__.drop(engine)
-
+    Promocode.__table__.drop(engine)
+    BoostPromocode.__table__.drop(engine)
 
 def hard_drop():
     os.remove('db/database.sqlite')

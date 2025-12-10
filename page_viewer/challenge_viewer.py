@@ -390,13 +390,13 @@ class ChallengePageViewerAdmin(ChallengePageViewer):
             'name': '#easychallenge',
             'is_hard': False,
             'coins_prize': 1000
-        } | args
+        }.update(args)
         hard_challenge_args = {
             'name': '#hardchallenge',
             'is_hard': True,
             'prizes': [],
             'post_link': 'www.google.com',
-        } | args
+        }.update(args)
         return easy_challenge_args, hard_challenge_args
 
 

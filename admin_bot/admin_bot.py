@@ -324,13 +324,12 @@ def start_bot(admin_token, notify, admin_notify):
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith('model_editor'))
     def model_editor(call):
-        match call.data.split()[1]:
-            case 'promocode_viewer':
-                admins[call.from_user.id].coins_promocode_viewer.handle_callback(call)
-            case 'boost_promocode_viewer':
-                admins[call.from_user.id].boost_promocode_viewer.handle_callback(call)
-            case 'prize_viewer':
-                admins[call.from_user.id].prize_viewer.handle_callback(call)
+        if call.data.split()[1] == 'promocode_viewer':
+            admins[call.from_user.id].coins_promocode_viewer.handle_callback(call)
+        elif call.data.split()[1] == 'boost_promocode_viewer':
+            admins[call.from_user.id].boost_promocode_viewer.handle_callback(call)
+        elif call.data.split()[1] == 'prize_viewer':
+            admins[call.from_user.id].prize_viewer.handle_callback(call)
         bot.answer_callback_query(call.id)
 
     # WAIT FOR

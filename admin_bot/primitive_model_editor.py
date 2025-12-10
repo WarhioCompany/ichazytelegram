@@ -340,17 +340,16 @@ class PrizeViewerAdmin(ModelEditor):
     def edit_field(self, edit_key, value):
         with session_scope() as session:
             prize = session.query(Prize).filter(Prize.id == self.current_object.id).one()
-            match edit_key:
-                case 'name':
-                    prize.name = value
-                case 'description':
-                    prize.description = value
-                case 'barrier_type':
-                    prize.barrier_type = self.get_next_barrier_type()
-                case 'barrier_value':
-                    prize.barrier_value = int(value)
-                case 'preview':
-                    prize.preview = value.media
+            if edit_key == 'name':
+                prize.name = value
+            elif edit_key == 'description':
+                prize.description = value
+            elif edit_key == 'barrier_type':
+                prize.barrier_type = self.get_next_barrier_type()
+            elif edit_key == 'barrier_value':
+                prize.barrier_value = int(value)
+            elif edit_key == 'preview':
+                prize.preview = value.media
             session.commit()
         self.chainer.clear_chain()
         self.update_page()
@@ -367,14 +366,12 @@ class PrizeViewerAdmin(ModelEditor):
             return types.InputMediaPhoto(db_tools.get_empty_image())
 
     def text_barrier_type(self):
-        match self.current_object.barrier_type:
-            case 'referrals':
-                return 'По количеству рефералов'
-            case 'subscribers':
-                return 'По количеству подписчиков на канале'
-            case 'promocodes':
-                return 'По количеству отоваренных промокодов привязанных к челленджу(ам)'
-
+        if self.current_object.barrier_type == 'referrals':
+            return 'По количеству рефералов'
+        elif self.current_object.barrier_type == 'subscribers':
+            return 'По количеству подписчиков на канале'
+        elif self.current_object.barrier_type == 'promocodes':
+            return 'По количеству отоваренных промокодов привязанных к челленджу(ам)'
 
     def get_text(self):
         if self.current_object:

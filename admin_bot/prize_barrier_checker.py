@@ -33,13 +33,12 @@ def prize_barriers_check():
 
 
 def get_barrier_type_text(barrier_type):
-    match barrier_type:
-        case 'referrals':
-            return 'Количество приглашенных друзей'
-        case 'subscribers':
-            return 'Челлендж выйдет, когда подписчиков на [Чейзи](https://t.me/ChazyChannel) будет {barrier_value}'
-        case 'promocodes':
-            return 'Количество активированных промокодов'
+    if barrier_type == 'referrals':
+        return 'Количество приглашенных друзей'
+    elif barrier_type == 'subscribers':
+        return 'Челлендж выйдет, когда подписчиков на [Чейзи](https://t.me/ChazyChannel) будет {barrier_value}'
+    elif barrier_type == 'promocodes':
+        return 'Количество активированных промокодов'
 
 
 def send_prize_barrier_message(bot, chat_id):
@@ -91,13 +90,12 @@ def get_actual_prize_text():
 
 
 def get_prize_barrier_value(prize):
-    match prize.barrier_type:
-        case 'promocodes':
-            return get_number_of_promocodes_associated_with_prize(prize)
-        case 'subscribers':
-            return get_number_of_subscribers()
-        case 'referrals':
-            return get_number_of_referrals()
+    if prize.barrier_type == 'promocodes':
+        return get_number_of_promocodes_associated_with_prize(prize)
+    elif prize.barrier_type == 'subscribers':
+        return get_number_of_subscribers()
+    elif prize.barrier_type == 'referrals':
+        return get_number_of_referrals()
     raise Exception(f'unknown barrier type: {prize.barrier_type}')
 
 
